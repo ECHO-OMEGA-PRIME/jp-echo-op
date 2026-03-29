@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Query — Aqua Pulse</title>
+  <meta name="description" content="Search and query water chemistry data by formation and geographic radius in the Permian Basin.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/query.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'query',
+      title: 'Data Query',
+      subtitle: 'Search and export water chemistry data'
+    });
+
+    var FORMATIONS = [
+      'Spraberry', 'Dean', 'Wolfcamp A', 'Wolfcamp B', 'Wolfcamp C', 'Wolfcamp D',
+      'Bone Spring 1', 'Bone Spring 2', 'Bone Spring 3', 'Delaware', 'San Andres',
+      'Clearfork', 'Glorieta', 'Yeso', 'Strawn', 'Ellenburger', 'Canyon', 'Cisco',
+      'Avalon', 'Bell Canyon'
+    ];
+
+    content.innerHTML = buildQueryUI();
+
+    function buildQueryUI() {
+      var html = '';
+
+      // Tabs
+      html += '<div class="tab-bar">';
+      html += '<button class="tab-btn active" onclick="wiQueryTab(\'formation\',this)">Formation Query</button>';
+      html += '<button class="tab-btn" onclick="wiQueryTab(\'radius\',this)">Radius Search</button>';
+      html += '</div>';
+
+      // Formation Query
+      html += '<div class="tab-panel active" id="tab-formation">';
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<div class="section-label">Query by Formation</div>';
+      html += '<p style="color:var(--white-dim);font-size:0.85rem;margin-bottom:20px">Get average water chemistry data for a specific geological formation across the Permian Basin.</p>';
+      html += '<div class="form-row" style="margin-bottom:16px">';
+      html += '<div class="form-group"><label>Formation</label><select id="queryFormation">';
+      html += '<option value="">Select formation...</option>';
+      FORMATIONS.forEach(function(f) { html += '<option value="' + f + '">' + f + '</option>'; });
+      html += '</select></div>';
+      html += '<div class="form-group" style="display:flex;align-items:flex-end"><button class="btn-primary" onclick="wiRunFormationQuery()">Run Query</button></div>';
+      html += '</div></div>';
+      html += '<div id="formationResults"></div>';
+      html += '</div>';
+
+      // Radius Query
+      html += '<div class="tab-panel" id="tab-radius">';
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<div class="section-label">Query by Radius</div>';
+      html += '<p style="color:var(--white-dim);font-size:0.85rem;margin-bottom:20px">Find all water chemistry data within a radius of a geographic point.</p>';
+      html += '<div class="form-row" style="margin-bottom:16px">';
+      html += '<div class="form-group"><label>Latitude</label><input type="number" id="queryLat" step="0.001" placeholder="31.950" value="31.950"></div>';
+      html += '<div class="form-group"><label>Longitude</label><input type="number" id="queryLng" step="0.001" placeholder="-102.100" value="-102.100"></div>';
+      html += '</div>';
+      html += '<div class="form-row" style="margin-bottom:16px">';
+      html += '<div class="form-group"><label>Radius (miles)</label><input type="number" id="queryRadius" step="1" min="1" max="100" placeholder="10" value="10"></div>';
+      html += '<div class="form-group" style="display:flex;align-items:flex-end"><button class="btn-primary" onclick="wiRunRadiusQuery()">Search</button></div>';
+      html += '</div></div>';
+      html += '<div id="radiusResults"></div>';
+      html += '</div>';
+
+      return html;
+    }
+
+    window.wiQueryTab = function(tabId, btn) {
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    };
+
+    window.wiRunFormationQuery = async function() {
+      var formation = document.getElementById('queryFormation').value;
+      if (!formation) { c.showToast('Select a formation', 'error'); return; }
+
+      var resultsEl = document.getElementById('formationResults');
+      resultsEl.innerHTML = c.skeletonRows(4, 50);
+
+      try {
+        var data = await api('/api/v1/query/formation/' + encodeURIComponent(formation));
+        renderFormationResults(data, formation);
+      } catch(e) {
+        resultsEl.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    };
+
+    function renderFormationResults(data, formation) {
+      var resultsEl = document.getElementById('formationResults');
+      var html = '<div class="glass-card" style="padding:24px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+      html += '<span class="section-label">' + c.escapeHtml(formation) + ' — Average Chemistry</span>';
+      html += '<span style="font-family:var(--font-heading);font-size:0.75rem;color:var(--white-dim)">' + (data.sample_count || 0) + ' samples</span>';
+      html += '</div>';
+
+      if (!data.averages && !data.avg_tds) {
+        html += '<div class="empty-state"><p>No data available for this formation</p></div>';
+      } else {
+        var avgs = data.averages || data;
+        html += '<div class="ion-grid">';
+        var fields = ['tds','chloride','calcium','magnesium','sodium','barium','strontium','iron','manganese',
+                      'sulfate','bicarbonate','h2s','sample_ph','specific_gravity'];
+        fields.forEach(function(f) {
+          var val = avgs[f] || avgs['avg_' + f];
+          if (val !== null && val !== undefined) {
+            html += '<div class="ion-item"><span class="ion-label">' + c.escapeHtml(f.replace(/_/g, ' ')) + '</span>';
+            html += '<span class="ion-value">' + c.formatNumber(val) + '</span></div>';
+          }
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+      resultsEl.innerHTML = html;
+    }
+
+    window.wiRunRadiusQuery = async function() {
+      var lat = parseFloat(document.getElementById('queryLat').value);
+      var lng = parseFloat(document.getElementById('queryLng').value);
+      var radius = parseFloat(document.getElementById('queryRadius').value);
+
+      if (isNaN(lat) || isNaN(lng) || isNaN(radius)) {
+        c.showToast('Enter valid coordinates and radius', 'error');
+        return;
+      }
+
+      var resultsEl = document.getElementById('radiusResults');
+      resultsEl.innerHTML = c.skeletonRows(4, 50);
+
+      try {
+        var params = new URLSearchParams();
+        params.set('lat', lat);
+        params.set('lng', lng);
+        params.set('radius_miles', radius);
+
+        var data = await api('/api/v1/map/radius?' + params.toString());
+        renderRadiusResults(data, radius);
+      } catch(e) {
+        resultsEl.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    };
+
+    function renderRadiusResults(data, radius) {
+      var resultsEl = document.getElementById('radiusResults');
+      var items = data.items || data.wells || data || [];
+      if (!Array.isArray(items)) items = [];
+
+      var html = '<div class="glass-card" style="padding:24px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+      html += '<span class="section-label">Wells within ' + radius + ' miles</span>';
+      html += '<span style="font-family:var(--font-heading);font-size:0.75rem;color:var(--white-dim)">' + items.length + ' found</span>';
+      html += '</div>';
+
+      if (items.length === 0) {
+        html += '<div class="empty-state"><p>No wells found in this area</p></div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Well Name</th><th>Operator</th><th>Formation</th><th>TDS</th><th>Distance</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach(function(w) {
+          html += '<tr onclick="window.location.href=\'well-detail.html?id=' + encodeURIComponent(w.id) + '\'">';
+          html += '<td style="color:var(--cyan)">' + c.escapeHtml(w.well_name) + '</td>';
+          html += '<td>' + c.escapeHtml(w.operator_name || '—') + '</td>';
+          html += '<td>' + c.escapeHtml(w.formation || '—') + '</td>';
+          html += '<td>' + c.formatNumber(w.latest_tds) + '</td>';
+          html += '<td>' + (w.distance_miles ? c.formatNumber(w.distance_miles, 1) + ' mi' : '—') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+      resultsEl.innerHTML = html;
+    }
+  })();
+  </script>
+</body>
+</html>

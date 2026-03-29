@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billing — Aqua Pulse</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var apiPost = bgat.api.apiPost || function(path, body) {
+      return bgat.api.apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    };
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'billing',
+      title: 'Billing & Invoices',
+      subtitle: 'Create and manage invoices — QuickBooks integration'
+    });
+
+    content.innerHTML = '<div class="stat-grid">' + c.skeletonRows(4, 120) + '</div>' +
+      '<div class="glass-card" style="padding:24px">' + c.skeletonRows(5, 40) + '</div>';
+
+    var wells = [];
+    var customers = [];
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && s.authorized && !s.loading) loadBilling();
+    });
+
+    async function loadBilling() {
+      try {
+        var [invoicesRes, statsRes, wellsRes, custRes] = await Promise.all([
+          api('/api/v1/invoices?per_page=50').catch(function() { return { items: [], total: 0 }; }),
+          api('/api/v1/invoices/stats/summary').catch(function() { return {}; }),
+          api('/api/v1/wells?per_page=200').catch(function() { return { items: [] }; }),
+          api('/api/v1/customers?per_page=200&status=active').catch(function() { return { items: [] }; })
+        ]);
+        wells = wellsRes.items || [];
+        customers = custRes.items || [];
+        renderBilling(invoicesRes.items || [], statsRes);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading billing: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderBilling(invoices, stats) {
+      var html = '';
+
+      // Stats cards
+      html += '<div class="stat-grid">';
+      html += statCard('Total Revenue', '$' + formatMoney(stats.total_revenue || 0), ICONS.dollar, '#22c55e');
+      html += statCard('Outstanding', '$' + formatMoney(stats.outstanding || 0), ICONS.clock, 'var(--orange)');
+      html += statCard('Invoices Sent', stats.sent || 0, ICONS.send, 'var(--cyan)');
+      html += statCard('Paid', stats.paid || 0, ICONS.check, '#22c55e');
+      html += '</div>';
+
+      // Create Invoice Button
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      html += '<span class="section-label">Invoices</span>';
+      html += '<button class="btn-primary btn-sm" id="btnNewInvoice">+ New Invoice</button>';
+      html += '</div>';
+
+      // QuickBooks status
+      html += '<div class="glass-card" style="padding:16px;margin-bottom:24px;display:flex;align-items:center;gap:12px">';
+      html += '<div style="width:40px;height:40px;border-radius:8px;background:#2CA01C20;display:flex;align-items:center;justify-content:center">';
+      html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2CA01C" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+      html += '</div>';
+      html += '<div>';
+      html += '<div style="font-family:var(--font-heading);font-size:0.85rem;color:var(--cyan)">QuickBooks Integration</div>';
+      html += '<div style="font-size:0.8rem;color:var(--white-dim)">Ready to connect — invoices sync automatically once authorized</div>';
+      html += '</div>';
+      html += '<button class="btn-outline btn-sm" id="btnConnectQB" style="margin-left:auto">Connect QuickBooks</button>';
+      html += '</div>';
+
+      // Invoices table
+      html += '<div class="glass-card" style="padding:24px">';
+      if (invoices.length === 0) {
+        html += '<div class="empty-state">';
+        html += '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>';
+        html += '<p>No invoices yet</p>';
+        html += '<p style="font-size:0.8rem;color:var(--white-dim)">Click "New Invoice" to create your first invoice</p>';
+        html += '</div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Invoice #</th><th>Customer</th><th>Well</th><th>Amount</th><th>Status</th><th>Date</th><th>QB Sync</th><th></th>';
+        html += '</tr></thead><tbody>';
+        invoices.forEach(function(inv) {
+          html += '<tr>';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(inv.invoice_number) + '</td>';
+          html += '<td>' + c.escapeHtml(inv.customer_name) + '</td>';
+          html += '<td>' + c.escapeHtml(inv.well_name || '—') + '</td>';
+          html += '<td style="font-weight:600">$' + formatMoney(inv.total_cents / 100) + '</td>';
+          html += '<td>' + statusBadge(inv.status) + '</td>';
+          html += '<td style="color:var(--white-dim)">' + c.formatDate(inv.created_at) + '</td>';
+          html += '<td>' + qbBadge(inv.qb_sync_status) + '</td>';
+          html += '<td>';
+          if (inv.status === 'draft') {
+            html += '<button class="btn-outline btn-sm" onclick="sendInvoice(\'' + inv.id + '\')" style="font-size:0.7rem;padding:2px 8px">Send</button> ';
+          }
+          if (inv.status === 'sent') {
+            html += '<button class="btn-outline btn-sm" onclick="markPaid(\'' + inv.id + '\')" style="font-size:0.7rem;padding:2px 8px">Mark Paid</button>';
+          }
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      content.innerHTML = html;
+
+      // Wire up buttons
+      document.getElementById('btnNewInvoice').addEventListener('click', showNewInvoiceModal);
+      document.getElementById('btnConnectQB').addEventListener('click', function() {
+        c.showToast('QuickBooks OAuth flow requires setup at developer.intuit.com — contact admin', 'info');
+      });
+    }
+
+    function showNewInvoiceModal() {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px';
+
+      var wellOptions = '<option value="">— No specific well —</option>';
+      wells.forEach(function(w) {
+        wellOptions += '<option value="' + w.id + '">' + c.escapeHtml(w.well_name) + ' (' + c.escapeHtml(w.operator_name || '') + ')</option>';
+      });
+
+      var serviceOptions = [
+        { value: 'well_analysis', label: 'Well Analysis ($150/well)', price: 150 },
+        { value: 'annual_subscription', label: 'Annual Subscription ($1,800)', price: 1800 },
+        { value: 'water_sampling', label: 'Water Sampling Service ($250)', price: 250 },
+        { value: 'bacteria_analysis', label: 'Bacteria Analysis ($200)', price: 200 },
+        { value: 'gas_analysis', label: 'Gas Analysis ($175)', price: 175 },
+        { value: 'scale_assessment', label: 'Scale Risk Assessment ($300)', price: 300 },
+        { value: 'custom', label: 'Custom Amount', price: 0 }
+      ];
+      var serviceOpts = '';
+      serviceOptions.forEach(function(s) {
+        serviceOpts += '<option value="' + s.value + '" data-price="' + s.price + '">' + s.label + '</option>';
+      });
+
+      var formHtml = '<div class="glass-card" style="padding:32px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">';
+      formHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      formHtml += '<h2 style="font-family:var(--font-heading);color:var(--cyan);margin:0">New Invoice</h2>';
+      formHtml += '<button id="closeModal" style="background:none;border:none;color:var(--white-dim);font-size:1.5rem;cursor:pointer">&times;</button>';
+      formHtml += '</div>';
+
+      // Build customer dropdown
+      var custOptions = '<option value="">— Select Customer —</option>';
+      customers.forEach(function(cu) {
+        custOptions += '<option value="' + cu.id + '" data-name="' + c.escapeHtml(cu.company_name) + '" data-email="' + c.escapeHtml(cu.email || '') + '">' + c.escapeHtml(cu.company_name) + (cu.contact_name ? ' (' + c.escapeHtml(cu.contact_name) + ')' : '') + '</option>';
+      });
+      custOptions += '<option value="__new__">+ Add New Customer...</option>';
+
+      formHtml += '<div style="display:grid;gap:16px">';
+      formHtml += formField('Customer', '<select id="invCustomerSelect" class="wi-input">' + custOptions + '</select>');
+      formHtml += '<div id="newCustFields" style="display:none">';
+      formHtml += formField('New Customer Name', '<input type="text" id="invCustomer" placeholder="e.g. Pioneer Natural Resources" class="wi-input">');
+      formHtml += formField('Customer Email', '<input type="email" id="invEmail" placeholder="billing@example.com" class="wi-input">');
+      formHtml += '</div>';
+      formHtml += formField('Well', '<select id="invWell" class="wi-input">' + wellOptions + '</select>');
+      formHtml += formField('Service Type', '<select id="invService" class="wi-input">' + serviceOpts + '</select>');
+      formHtml += formField('Unit Price ($)', '<input type="number" id="invPrice" value="150" min="0" step="0.01" class="wi-input">');
+      formHtml += formField('Quantity', '<input type="number" id="invQty" value="1" min="1" class="wi-input">');
+      formHtml += formField('Due Date', '<input type="date" id="invDue" class="wi-input">');
+      formHtml += formField('Notes', '<textarea id="invNotes" rows="2" class="wi-input" placeholder="Optional notes..."></textarea>');
+      formHtml += '</div>';
+
+      formHtml += '<div style="margin-top:16px;padding:16px;border-radius:8px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2)">';
+      formHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--white-dim)">Subtotal:</span><span id="invSubtotal" style="color:var(--white)">$150.00</span></div>';
+      formHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--white-dim)">Tax (8.25%):</span><span id="invTax" style="color:var(--white)">$12.38</span></div>';
+      formHtml += '<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:var(--cyan)">Total:</span><span id="invTotal" style="color:var(--cyan)">$162.38</span></div>';
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:flex;gap:12px;margin-top:24px">';
+      formHtml += '<button id="btnCreateInvoice" class="btn-primary" style="flex:1">Create Invoice</button>';
+      formHtml += '<button id="btnCancelInvoice" class="btn-outline" style="flex:0">Cancel</button>';
+      formHtml += '</div>';
+      formHtml += '</div>';
+
+      overlay.innerHTML = formHtml;
+      document.body.appendChild(overlay);
+
+      // Calculate totals on change
+      function updateTotals() {
+        var price = parseFloat(document.getElementById('invPrice').value) || 0;
+        var qty = parseInt(document.getElementById('invQty').value) || 1;
+        var subtotal = price * qty;
+        var tax = subtotal * 0.0825;
+        document.getElementById('invSubtotal').textContent = '$' + formatMoney(subtotal);
+        document.getElementById('invTax').textContent = '$' + formatMoney(tax);
+        document.getElementById('invTotal').textContent = '$' + formatMoney(subtotal + tax);
+      }
+
+      // Customer dropdown logic
+      document.getElementById('invCustomerSelect').addEventListener('change', function() {
+        var val = this.value;
+        var newFields = document.getElementById('newCustFields');
+        if (val === '__new__') {
+          newFields.style.display = 'grid';
+          newFields.style.gap = '16px';
+        } else {
+          newFields.style.display = 'none';
+          // Auto-fill email if available
+          var opt = this.options[this.selectedIndex];
+          var email = opt.getAttribute('data-email');
+          if (email) {
+            var emailField = document.getElementById('invEmail');
+            if (emailField) emailField.value = email;
+          }
+        }
+      });
+
+      // Service type changes price
+      document.getElementById('invService').addEventListener('change', function() {
+        var opt = this.options[this.selectedIndex];
+        var price = parseFloat(opt.getAttribute('data-price')) || 0;
+        if (price > 0) document.getElementById('invPrice').value = price;
+        updateTotals();
+      });
+      document.getElementById('invPrice').addEventListener('input', updateTotals);
+      document.getElementById('invQty').addEventListener('input', updateTotals);
+
+      // Set default due date to 30 days from now
+      var due = new Date();
+      due.setDate(due.getDate() + 30);
+      document.getElementById('invDue').value = due.toISOString().split('T')[0];
+
+      // Close
+      function closeModal() { document.body.removeChild(overlay); }
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('btnCancelInvoice').addEventListener('click', closeModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+
+      // Create
+      document.getElementById('btnCreateInvoice').addEventListener('click', async function() {
+        var custSelect = document.getElementById('invCustomerSelect');
+        var custVal = custSelect.value;
+        var customerName = '';
+        var customerId = '';
+        var customerEmail = '';
+
+        if (custVal === '__new__') {
+          customerName = document.getElementById('invCustomer').value.trim();
+          customerEmail = document.getElementById('invEmail').value.trim();
+          if (!customerName) {
+            c.showToast('Customer name is required', 'error');
+            return;
+          }
+        } else if (custVal) {
+          var opt = custSelect.options[custSelect.selectedIndex];
+          customerName = opt.getAttribute('data-name');
+          customerEmail = opt.getAttribute('data-email') || '';
+          customerId = custVal;
+        } else {
+          c.showToast('Please select a customer', 'error');
+          return;
+        }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        try {
+          var price = parseFloat(document.getElementById('invPrice').value) || 0;
+          var qty = parseInt(document.getElementById('invQty').value) || 1;
+          var wellId = document.getElementById('invWell').value;
+          var serviceType = document.getElementById('invService').value;
+          var serviceLabel = document.getElementById('invService').options[document.getElementById('invService').selectedIndex].text;
+
+          var payload = {
+            customer_name: customerName,
+            customer_id: customerId || undefined,
+            customer_email: customerEmail || undefined,
+            service_type: serviceType,
+            due_date: document.getElementById('invDue').value || undefined,
+            notes: document.getElementById('invNotes').value.trim() || undefined,
+            line_items: [{
+              well_id: wellId || undefined,
+              description: serviceLabel.split('(')[0].trim(),
+              quantity: qty,
+              unit_price: price
+            }]
+          };
+
+          await apiPost('/api/v1/invoices', payload);
+          c.showToast('Invoice created successfully', 'success');
+          closeModal();
+          loadBilling();
+        } catch(e) {
+          c.showToast('Error creating invoice: ' + e.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Create Invoice';
+        }
+      });
+    }
+
+    // Global actions
+    window.sendInvoice = async function(id) {
+      try {
+        await bgat.api.apiFetch('/api/v1/invoices/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'sent' })
+        });
+        c.showToast('Invoice marked as sent', 'success');
+        loadBilling();
+      } catch(e) {
+        c.showToast('Error: ' + e.message, 'error');
+      }
+    };
+
+    window.markPaid = async function(id) {
+      try {
+        await bgat.api.apiFetch('/api/v1/invoices/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'paid', paid_date: new Date().toISOString() })
+        });
+        c.showToast('Invoice marked as paid', 'success');
+        loadBilling();
+      } catch(e) {
+        c.showToast('Error: ' + e.message, 'error');
+      }
+    };
+
+    // Helpers
+    var ICONS = {
+      dollar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'
+    };
+
+    function formatMoney(n) {
+      return (n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div>' +
+        '<div class="stat-card-label">' + label + '</div>' +
+        '<div class="stat-card-value">' + value + '</div>' +
+        '</div>';
+    }
+
+    function statusBadge(status) {
+      var colors = {
+        draft: '#94a3b8', sent: '#3b82f6', paid: '#22c55e',
+        overdue: '#ef4444', void: '#6b7280'
+      };
+      var color = colors[status] || '#94a3b8';
+      return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.7rem;font-family:var(--font-heading);text-transform:uppercase;letter-spacing:1px;background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + (status || 'unknown') + '</span>';
+    }
+
+    function qbBadge(status) {
+      if (status === 'synced') return '<span style="color:#22c55e;font-size:0.75rem">✓ Synced</span>';
+      if (status === 'error') return '<span style="color:#ef4444;font-size:0.75rem">✗ Error</span>';
+      return '<span style="color:#94a3b8;font-size:0.75rem">○ Pending</span>';
+    }
+
+    function formField(label, inputHtml) {
+      return '<div>' +
+        '<label style="display:block;font-family:var(--font-heading);font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--white-dim);margin-bottom:4px">' + label + '</label>' +
+        inputHtml + '</div>';
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers — Aqua Pulse</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var apiPost = bgat.api.apiPost;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'customers',
+      title: 'Customers',
+      subtitle: 'Manage customers for invoicing — QuickBooks integration'
+    });
+
+    content.innerHTML = '<div class="stat-grid">' + c.skeletonRows(3, 120) + '</div>' +
+      '<div class="glass-card" style="padding:24px">' + c.skeletonRows(5, 40) + '</div>';
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && s.authorized && !s.loading) loadCustomers();
+    });
+
+    async function loadCustomers() {
+      try {
+        var res = await api('/api/v1/customers?per_page=200');
+        renderCustomers(res.items || [], res.total || 0);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading customers: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderCustomers(customers, total) {
+      var active = customers.filter(function(cu) { return cu.status === 'active'; }).length;
+      var inactive = customers.filter(function(cu) { return cu.status !== 'active'; }).length;
+      var html = '';
+
+      // Stats
+      html += '<div class="stat-grid">';
+      html += statCard('Total Customers', total, ICONS.users, 'var(--cyan)');
+      html += statCard('Active', active, ICONS.check, '#22c55e');
+      html += statCard('Inactive', inactive, ICONS.pause, '#94a3b8');
+      html += '</div>';
+
+      // Actions
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">';
+      html += '<span class="section-label">Customer Directory</span>';
+      html += '<div style="display:flex;gap:12px;align-items:center">';
+      html += '<input type="text" id="custSearch" placeholder="Search customers..." class="wi-input" style="width:220px;padding:6px 12px;font-size:0.85rem">';
+      html += '<button class="btn-primary btn-sm" id="btnNewCustomer">+ New Customer</button>';
+      html += '</div></div>';
+
+      // Table
+      html += '<div class="glass-card" style="padding:24px">';
+      if (customers.length === 0) {
+        html += '<div class="empty-state">';
+        html += '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+        html += '<p>No customers yet</p>';
+        html += '<p style="font-size:0.8rem;color:var(--white-dim)">Click "New Customer" to add your first customer</p>';
+        html += '</div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Company</th><th>Contact</th><th>Email</th><th>Phone</th><th>City/State</th><th>Terms</th><th>Status</th><th>QB</th><th></th>';
+        html += '</tr></thead><tbody>';
+        customers.forEach(function(cu) {
+          html += '<tr>';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(cu.company_name) + '</td>';
+          html += '<td>' + c.escapeHtml(cu.contact_name || '—') + '</td>';
+          html += '<td>' + c.escapeHtml(cu.email || '—') + '</td>';
+          html += '<td>' + c.escapeHtml(cu.phone || '—') + '</td>';
+          html += '<td>' + c.escapeHtml((cu.city || '') + (cu.state ? ', ' + cu.state : '')) + '</td>';
+          html += '<td>Net ' + (cu.payment_terms || 30) + '</td>';
+          html += '<td>' + custStatusBadge(cu.status) + '</td>';
+          html += '<td>' + qbBadge(cu.qb_customer_id) + '</td>';
+          html += '<td>';
+          html += '<button class="btn-outline btn-sm" onclick="editCustomer(\'' + cu.id + '\')" style="font-size:0.7rem;padding:2px 8px">Edit</button>';
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      content.innerHTML = html;
+
+      // Wire buttons
+      document.getElementById('btnNewCustomer').addEventListener('click', function() { showCustomerModal(); });
+
+      // Search
+      document.getElementById('custSearch').addEventListener('input', function() {
+        var q = this.value.toLowerCase();
+        var rows = content.querySelectorAll('.data-table tbody tr');
+        rows.forEach(function(row) {
+          row.style.display = row.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+        });
+      });
+    }
+
+    function showCustomerModal(existing) {
+      var isEdit = !!existing;
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px';
+
+      var formHtml = '<div class="glass-card" style="padding:32px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">';
+      formHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      formHtml += '<h2 style="font-family:var(--font-heading);color:var(--cyan);margin:0">' + (isEdit ? 'Edit Customer' : 'New Customer') + '</h2>';
+      formHtml += '<button id="closeModal" style="background:none;border:none;color:var(--white-dim);font-size:1.5rem;cursor:pointer">&times;</button>';
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:grid;gap:16px">';
+      formHtml += formField('Company Name *', '<input type="text" id="custCompany" value="' + c.escapeHtml((existing && existing.company_name) || '') + '" placeholder="e.g. Pioneer Natural Resources" class="wi-input">');
+      formHtml += formField('Contact Name', '<input type="text" id="custContact" value="' + c.escapeHtml((existing && existing.contact_name) || '') + '" placeholder="John Smith" class="wi-input">');
+      formHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      formHtml += formField('Email', '<input type="email" id="custEmail" value="' + c.escapeHtml((existing && existing.email) || '') + '" placeholder="billing@example.com" class="wi-input">');
+      formHtml += formField('Phone', '<input type="tel" id="custPhone" value="' + c.escapeHtml((existing && existing.phone) || '') + '" placeholder="(432) 555-0100" class="wi-input">');
+      formHtml += '</div>';
+      formHtml += formField('Billing Address', '<input type="text" id="custAddress" value="' + c.escapeHtml((existing && existing.billing_address) || '') + '" placeholder="123 Main St" class="wi-input">');
+      formHtml += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px">';
+      formHtml += formField('City', '<input type="text" id="custCity" value="' + c.escapeHtml((existing && existing.city) || '') + '" placeholder="Midland" class="wi-input">');
+      formHtml += formField('State', '<input type="text" id="custState" value="' + c.escapeHtml((existing && existing.state) || 'TX') + '" class="wi-input">');
+      formHtml += formField('ZIP', '<input type="text" id="custZip" value="' + c.escapeHtml((existing && existing.zip) || '') + '" placeholder="79701" class="wi-input">');
+      formHtml += '</div>';
+      formHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      formHtml += formField('Payment Terms (days)', '<input type="number" id="custTerms" value="' + ((existing && existing.payment_terms) || 30) + '" min="0" class="wi-input">');
+      formHtml += formField('Tax Exempt', '<select id="custTaxExempt" class="wi-input"><option value="0"' + (existing && existing.tax_exempt ? '' : ' selected') + '>No</option><option value="1"' + (existing && existing.tax_exempt ? ' selected' : '') + '>Yes</option></select>');
+      formHtml += '</div>';
+      formHtml += formField('Notes', '<textarea id="custNotes" rows="2" class="wi-input" placeholder="Optional notes...">' + c.escapeHtml((existing && existing.notes) || '') + '</textarea>');
+      if (isEdit) {
+        formHtml += formField('Status', '<select id="custStatus" class="wi-input"><option value="active"' + (existing.status === 'active' ? ' selected' : '') + '>Active</option><option value="inactive"' + (existing.status === 'inactive' ? ' selected' : '') + '>Inactive</option></select>');
+      }
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:flex;gap:12px;margin-top:24px">';
+      formHtml += '<button id="btnSaveCustomer" class="btn-primary" style="flex:1">' + (isEdit ? 'Save Changes' : 'Create Customer') + '</button>';
+      formHtml += '<button id="btnCancelCustomer" class="btn-outline" style="flex:0">Cancel</button>';
+      formHtml += '</div>';
+      formHtml += '</div>';
+
+      overlay.innerHTML = formHtml;
+      document.body.appendChild(overlay);
+
+      function closeModal() { document.body.removeChild(overlay); }
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('btnCancelCustomer').addEventListener('click', closeModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+
+      document.getElementById('btnSaveCustomer').addEventListener('click', async function() {
+        var company = document.getElementById('custCompany').value.trim();
+        if (!company) { c.showToast('Company name is required', 'error'); return; }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+          var payload = {
+            company_name: company,
+            contact_name: document.getElementById('custContact').value.trim() || undefined,
+            email: document.getElementById('custEmail').value.trim() || undefined,
+            phone: document.getElementById('custPhone').value.trim() || undefined,
+            billing_address: document.getElementById('custAddress').value.trim() || undefined,
+            city: document.getElementById('custCity').value.trim() || undefined,
+            state: document.getElementById('custState').value.trim() || undefined,
+            zip: document.getElementById('custZip').value.trim() || undefined,
+            payment_terms: parseInt(document.getElementById('custTerms').value) || 30,
+            tax_exempt: document.getElementById('custTaxExempt').value === '1',
+            notes: document.getElementById('custNotes').value.trim() || undefined
+          };
+
+          if (isEdit) {
+            payload.status = document.getElementById('custStatus').value;
+            await api('/api/v1/customers/' + existing.id, {
+              method: 'PATCH',
+              body: JSON.stringify(payload)
+            });
+            c.showToast('Customer updated', 'success');
+          } else {
+            await apiPost('/api/v1/customers', payload);
+            c.showToast('Customer created', 'success');
+          }
+          closeModal();
+          loadCustomers();
+        } catch(e) {
+          c.showToast('Error: ' + e.message, 'error');
+          btn.disabled = false;
+          btn.textContent = isEdit ? 'Save Changes' : 'Create Customer';
+        }
+      });
+    }
+
+    // Edit customer — load data then show modal
+    window.editCustomer = async function(id) {
+      try {
+        var cu = await api('/api/v1/customers/' + id);
+        showCustomerModal(cu);
+      } catch(e) {
+        c.showToast('Error loading customer: ' + e.message, 'error');
+      }
+    };
+
+    // Helpers
+    var ICONS = {
+      users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+      pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+    };
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div>' +
+        '<div class="stat-card-label">' + label + '</div>' +
+        '<div class="stat-card-value">' + value + '</div>' +
+        '</div>';
+    }
+
+    function custStatusBadge(status) {
+      var color = status === 'active' ? '#22c55e' : '#94a3b8';
+      return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.7rem;font-family:var(--font-heading);text-transform:uppercase;letter-spacing:1px;background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + (status || 'active') + '</span>';
+    }
+
+    function qbBadge(qbId) {
+      if (qbId) return '<span style="color:#22c55e;font-size:0.75rem">&#10003; Linked</span>';
+      return '<span style="color:#94a3b8;font-size:0.75rem">&#9675; Not linked</span>';
+    }
+
+    function formField(label, inputHtml) {
+      return '<div>' +
+        '<label style="display:block;font-family:var(--font-heading);font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--white-dim);margin-bottom:4px">' + label + '</label>' +
+        inputHtml + '</div>';
+    }
+  })();
+  </script>
+</body>
+</html>

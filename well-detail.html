@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Well Detail — Aqua Pulse</title>
+  <meta name="description" content="Detailed well information, sample history, ion analysis, and trends for Permian Basin wells.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/well-detail.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var params = new URLSearchParams(window.location.search);
+    var wellId = params.get('id');
+
+    if (!wellId) {
+      window.location.href = 'wells.html';
+      return;
+    }
+
+    var content = c.initPage({
+      page: 'wells',
+      title: 'Well Detail',
+      subtitle: 'Loading...'
+    });
+
+    content.innerHTML = c.skeletonRows(6, 50);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) loadWellDetail();
+    });
+
+    var wellData = null;
+    var samplesData = [];
+    var trendChart = null;
+
+    async function loadWellDetail() {
+      try {
+        var [well, samples] = await Promise.all([
+          api('/api/v1/wells/' + encodeURIComponent(wellId)),
+          api('/api/v1/wells/' + encodeURIComponent(wellId) + '/samples').catch(function() { return { items: [] }; })
+        ]);
+
+        wellData = well;
+        samplesData = samples.items || samples || [];
+
+        // Update topbar title
+        var h1 = document.querySelector('.wi-topbar-left h1');
+        var p = document.querySelector('.wi-topbar-left p');
+        if (h1) h1.textContent = well.well_name;
+        if (p) p.textContent = (well.operator_name || '') + (well.target_formation ? ' • ' + well.target_formation : '');
+
+        renderWellDetail();
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderWellDetail() {
+      var w = wellData;
+      var html = '';
+
+      // Back button
+      html += '<a href="wells.html" style="display:inline-flex;align-items:center;gap:8px;margin-bottom:24px;font-family:var(--font-heading);font-size:0.8rem;color:var(--white-dim)">' +
+        c.ICONS.back + 'Back to Wells</a>';
+
+      // Info Cards
+      html += '<div class="stat-grid" style="margin-bottom:24px">';
+      html += infoCard('Operator', w.operator_name || '—');
+      html += infoCard('Formation', w.target_formation || '—');
+      html += infoCard('County / State', (w.county || '—') + ', ' + (w.state || 'TX'));
+      html += infoCard('Depth', w.total_depth_ft ? c.formatNumber(w.total_depth_ft, 0) + ' ft' : '—');
+      html += '</div>';
+
+      // Well Details Card
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<div class="section-label">Well Information</div>';
+      html += '<div class="ion-grid">';
+      html += ionItem('API Number', w.api_number || '—');
+      html += ionItem('Field Name', w.field_name || '—');
+      html += ionItem('Status', w.well_status || 'active');
+      html += ionItem('Latitude', w.latitude ? w.latitude.toFixed(6) : '—');
+      html += ionItem('Longitude', w.longitude ? w.longitude.toFixed(6) : '—');
+      html += ionItem('Created', c.formatDate(w.created_at));
+      html += '</div></div>';
+
+      // Tabs
+      html += '<div class="tab-bar">';
+      html += '<button class="tab-btn active" onclick="wiSwitchTab(\'samples\', this)">Sample History</button>';
+      html += '<button class="tab-btn" onclick="wiSwitchTab(\'ions\', this)">Latest Ions</button>';
+      html += '<button class="tab-btn" onclick="wiSwitchTab(\'trends\', this)">Trends</button>';
+      html += '</div>';
+
+      // Samples Tab
+      html += '<div class="tab-panel active" id="tab-samples">';
+      if (samplesData.length === 0) {
+        html += '<div class="empty-state">' + c.ICONS.activity + '<p>No samples recorded yet</p></div>';
+      } else {
+        html += '<div class="glass-card" style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Date</th><th>Lab ID</th><th>TDS</th><th>pH</th><th>Chloride</th><th>Calcium</th><th>Ion Balance</th>';
+        html += '</tr></thead><tbody>';
+        samplesData.forEach(function(s) {
+          html += '<tr>';
+          html += '<td style="color:var(--cyan)">' + c.formatDate(s.sample_date) + '</td>';
+          html += '<td>' + c.escapeHtml(s.lab_id || '—') + '</td>';
+          html += '<td>' + c.formatNumber(s.tds) + '</td>';
+          html += '<td>' + c.formatNumber(s.sample_ph, 2) + '</td>';
+          html += '<td>' + c.formatNumber(s.chloride) + '</td>';
+          html += '<td>' + c.formatNumber(s.calcium) + '</td>';
+          html += '<td>' + ionBalanceBadge(s.ion_balance_pct) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // Ions Tab
+      html += '<div class="tab-panel" id="tab-ions">';
+      var latest = samplesData[0];
+      if (!latest) {
+        html += '<div class="empty-state"><p>No sample data available</p></div>';
+      } else {
+        html += '<div class="section-label" style="margin-bottom:12px">Cations (mg/L)</div>';
+        html += '<div class="ion-grid" style="margin-bottom:24px">';
+        var cations = ['calcium','magnesium','barium','strontium','sodium','potassium','iron','manganese','lithium','zinc','lead','boron','silica'];
+        cations.forEach(function(ion) { html += ionItem(ion, c.formatNumber(latest[ion])); });
+        html += '</div>';
+
+        html += '<div class="section-label" style="margin-bottom:12px">Anions (mg/L)</div>';
+        html += '<div class="ion-grid" style="margin-bottom:24px">';
+        var anions = ['chloride','sulfate','dissolved_co2','bicarbonate','h2s','bromide','fluoride','nitrate'];
+        anions.forEach(function(ion) { html += ionItem(ion, c.formatNumber(latest[ion])); });
+        html += '</div>';
+
+        html += '<div class="section-label" style="margin-bottom:12px">Parameters</div>';
+        html += '<div class="ion-grid">';
+        var params2 = [
+          ['temperature_f', '°F'], ['sample_ph', ''], ['conductivity', 'µS/cm'],
+          ['tds', 'mg/L'], ['resistivity', 'Ω·m'], ['specific_gravity', '']
+        ];
+        params2.forEach(function(p) {
+          html += ionItem(p[0], c.formatNumber(latest[p[0]]) + (p[1] ? ' ' + p[1] : ''));
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Trends Tab
+      html += '<div class="tab-panel" id="tab-trends">';
+      html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">';
+      html += '<label style="font-family:var(--font-heading);font-size:0.75rem;color:var(--white-dim);text-transform:uppercase;letter-spacing:1px">Ion:</label>';
+      html += '<select id="trendIonSelect" style="padding:6px 12px;background:var(--surface);border:1px solid rgba(0,212,255,0.2);border-radius:4px;color:var(--white);font-family:var(--font-body)" onchange="wiLoadTrend()">';
+      ['tds','chloride','calcium','barium','iron','manganese','h2s','sulfate','sodium','sample_ph'].forEach(function(ion) {
+        html += '<option value="' + ion + '">' + ion.replace(/_/g, ' ') + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div class="chart-container"><canvas id="trendCanvas" height="300"></canvas></div>';
+      html += '</div>';
+
+      content.innerHTML = html;
+
+      // Load initial trend
+      if (samplesData.length > 0) wiLoadTrend();
+    }
+
+    function infoCard(label, value) {
+      return '<div class="stat-card" style="padding:16px">' +
+        '<div class="stat-card-label">' + c.escapeHtml(label) + '</div>' +
+        '<div style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--white);margin-top:4px">' +
+        c.escapeHtml(String(value)) + '</div></div>';
+    }
+
+    function ionItem(label, value) {
+      return '<div class="ion-item"><span class="ion-label">' + c.escapeHtml(label.replace(/_/g, ' ')) +
+        '</span><span class="ion-value">' + c.escapeHtml(String(value)) + '</span></div>';
+    }
+
+    function ionBalanceBadge(pct) {
+      if (pct === null || pct === undefined) return '—';
+      var cls = pct < 5 ? 'badge-success' : pct < 10 ? 'badge-warning' : 'badge-critical';
+      return '<span class="badge ' + cls + '">' + c.formatNumber(pct, 1) + '%</span>';
+    }
+
+    window.wiSwitchTab = function(tabId, btn) {
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    };
+
+    window.wiLoadTrend = async function() {
+      var ion = document.getElementById('trendIonSelect').value;
+      try {
+        var data = await api('/api/v1/wells/' + encodeURIComponent(wellId) + '/trends?ion=' + ion);
+        renderTrendChart(data, ion);
+      } catch(e) {
+        // Fallback: chart from sample data
+        renderTrendFromSamples(ion);
+      }
+    };
+
+    function renderTrendChart(data, ion) {
+      var canvas = document.getElementById('trendCanvas');
+      if (!canvas) return;
+      if (trendChart) trendChart.destroy();
+
+      var points = data.points || data || [];
+      var labels = points.map(function(p) { return c.formatDate(p.sample_date); });
+      var values = points.map(function(p) { return p.value; });
+
+      trendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: ion.replace(/_/g, ' '),
+            data: values,
+            borderColor: '#00d4ff',
+            backgroundColor: 'rgba(0,212,255,0.1)',
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: '#5be5ff',
+            pointBorderColor: '#00d4ff',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#7a99b8', font: { family: 'Outfit' } } }
+          },
+          scales: {
+            x: { ticks: { color: '#7a99b8', font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(0,212,255,0.08)' } },
+            y: { ticks: { color: '#7a99b8', font: { family: 'Inter', size: 11 } }, grid: { color: 'rgba(0,212,255,0.08)' } }
+          }
+        }
+      });
+    }
+
+    function renderTrendFromSamples(ion) {
+      var points = samplesData.map(function(s) {
+        return { sample_date: s.sample_date, value: s[ion] };
+      }).filter(function(p) { return p.value !== null && p.value !== undefined; }).reverse();
+      renderTrendChart({ points: points }, ion);
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wells — Aqua Pulse</title>
+  <meta name="description" content="Browse and manage registered wells in the Aqua Pulse Water Intelligence Platform.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/wells.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'wells',
+      title: 'Wells Database',
+      subtitle: 'All registered wells in the Permian Basin'
+    });
+
+    var currentPage = 1;
+    var perPage = 20;
+    var searchTerm = '';
+    var searchTimer = null;
+
+    content.innerHTML = c.skeletonRows(8, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) loadWells();
+    });
+
+    async function loadWells() {
+      try {
+        var params = new URLSearchParams();
+        params.set('page', currentPage);
+        params.set('per_page', perPage);
+        if (searchTerm) params.set('search', searchTerm);
+
+        var data = await api('/api/v1/wells?' + params.toString());
+        renderWells(data);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderWells(data) {
+      var items = data.items || [];
+      var total = data.total || 0;
+      var totalPages = Math.ceil(total / perPage);
+
+      var html = '';
+
+      // Search + count
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px">';
+      html += '<div class="search-bar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+      html += '<input type="text" id="wellSearch" placeholder="Search wells by name, operator, API..." value="' + c.escapeHtml(searchTerm) + '"></div>';
+      html += '<span style="font-family:var(--font-heading);font-size:0.8rem;color:var(--white-dim)">' + total + ' wells</span>';
+      html += '</div>';
+
+      if (items.length === 0) {
+        html += '<div class="empty-state">' + c.ICONS.droplet + '<p>No wells found</p></div>';
+      } else {
+        html += '<div class="glass-card" style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Well Name</th><th>API #</th><th>Operator</th><th>Formation</th><th>County</th><th>Status</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach(function(w) {
+          html += '<tr onclick="window.location.href=\'well-detail.html?id=' + encodeURIComponent(w.id) + '\'">';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(w.well_name) + '</td>';
+          html += '<td>' + c.escapeHtml(w.api_number || '—') + '</td>';
+          html += '<td>' + c.escapeHtml(w.operator_name) + '</td>';
+          html += '<td>' + c.escapeHtml(w.target_formation || '—') + '</td>';;
+          html += '<td>' + c.escapeHtml(w.county || '—') + '</td>';
+          html += '<td>' + c.statusBadge(w.well_status || 'active') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+
+        // Pagination
+        if (totalPages > 1) {
+          html += '<div class="pagination">';
+          html += '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="wiWellsPage(' + (currentPage - 1) + ')">← Prev</button>';
+          for (var p = 1; p <= Math.min(totalPages, 7); p++) {
+            html += '<button class="' + (p === currentPage ? 'active' : '') + '" onclick="wiWellsPage(' + p + ')">' + p + '</button>';
+          }
+          if (totalPages > 7) html += '<button disabled>...</button><button onclick="wiWellsPage(' + totalPages + ')">' + totalPages + '</button>';
+          html += '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="wiWellsPage(' + (currentPage + 1) + ')">Next →</button>';
+          html += '</div>';
+        }
+      }
+
+      content.innerHTML = html;
+
+      // Bind search
+      var searchInput = document.getElementById('wellSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(function() {
+            searchTerm = searchInput.value.trim();
+            currentPage = 1;
+            loadWells();
+          }, 400);
+        });
+      }
+    }
+
+    window.wiWellsPage = function(p) {
+      currentPage = p;
+      loadWells();
+      window.scrollTo(0, 0);
+    };
+  })();
+  </script>
+</body>
+</html>

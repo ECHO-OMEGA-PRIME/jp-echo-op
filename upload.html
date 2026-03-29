@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload — Aqua Pulse</title>
+  <meta name="description" content="Upload PDF lab reports for automated parsing and water chemistry analysis.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/upload.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+  <style>
+    .upload-queue { margin-top:24px; }
+    .uq-item {
+      display:flex; align-items:center; gap:12px;
+      padding:12px 16px; border-radius:6px;
+      background:var(--surface-alt, rgba(255,255,255,0.03));
+      margin-bottom:8px; border:1px solid rgba(255,255,255,0.06);
+    }
+    .uq-item.uq-done { border-color:rgba(34,197,94,0.3); }
+    .uq-item.uq-fail { border-color:rgba(239,68,68,0.3); }
+    .uq-item.uq-active { border-color:var(--cyan); }
+    .uq-name {
+      flex:1; font-size:0.85rem; white-space:nowrap;
+      overflow:hidden; text-overflow:ellipsis; color:var(--white);
+    }
+    .uq-size { font-size:0.75rem; color:var(--white-dim); min-width:60px; text-align:right; }
+    .uq-status { font-size:0.75rem; min-width:90px; text-align:right; font-family:var(--font-heading); text-transform:uppercase; letter-spacing:1px; }
+    .uq-status.pending { color:var(--white-dim); }
+    .uq-status.uploading { color:var(--cyan); }
+    .uq-status.done { color:#22c55e; }
+    .uq-status.failed { color:#ef4444; }
+    .uq-bar { width:80px; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+    .uq-bar-fill { height:100%; background:var(--cyan); border-radius:2px; transition:width 0.3s; }
+    .uq-bar-fill.done { background:#22c55e; }
+    .uq-bar-fill.failed { background:#ef4444; }
+    .upload-summary {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+      gap:12px; margin-bottom:20px;
+    }
+    .us-card {
+      text-align:center; padding:16px 8px; border-radius:8px;
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+    }
+    .us-card-val { font-size:1.5rem; font-weight:700; font-family:var(--font-heading); }
+    .us-card-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--white-dim); margin-top:4px; }
+    .upload-zone-multi {
+      border:2px dashed rgba(255,255,255,0.15); border-radius:12px;
+      padding:48px 24px; text-align:center; cursor:pointer; transition:all 0.2s;
+    }
+    .upload-zone-multi:hover, .upload-zone-multi.dragover {
+      border-color:var(--cyan); background:rgba(0,212,255,0.03);
+    }
+    .upload-zone-multi svg { width:48px; height:48px; fill:none; stroke:var(--cyan); stroke-width:1.5; margin-bottom:12px; }
+    .upload-zone-multi h3 { margin:0 0 8px; font-family:var(--font-heading); font-size:1.1rem; }
+    .upload-zone-multi p { margin:0; font-size:0.85rem; color:var(--white-dim); }
+    .upload-btn-row {
+      display:flex; gap:12px; justify-content:center; margin-top:20px; flex-wrap:wrap;
+    }
+    .upload-btn-row button {
+      padding:10px 24px; border-radius:6px; font-size:0.9rem; font-weight:600; cursor:pointer;
+      border:1px solid rgba(0,212,255,0.3); background:rgba(0,212,255,0.08); color:var(--cyan);
+      transition:all 0.2s;
+    }
+    .upload-btn-row button:hover { background:rgba(0,212,255,0.15); }
+    .upload-actions { display:flex; gap:12px; margin-top:16px; justify-content:space-between; align-items:center; }
+    .upload-actions button:disabled { opacity:0.4; cursor:not-allowed; }
+    .overall-progress {
+      margin:16px 0; padding:16px 20px; border-radius:8px;
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+    }
+    .overall-bar { width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden; margin:10px 0 6px; }
+    .overall-bar-fill { height:100%; background:linear-gradient(90deg,#00d4ff,#22c55e); border-radius:4px; transition:width 0.3s; }
+    .overall-stats { display:flex; justify-content:space-between; font-size:0.75rem; color:var(--white-dim); }
+    .results-toggle { cursor:pointer; user-select:none; }
+    .results-toggle:hover { color:var(--cyan); }
+    .result-detail { display:none; padding:12px 16px; background:rgba(0,0,0,0.2); border-radius:6px; margin-top:8px; }
+    .result-detail.open { display:block; }
+    .queue-scroll { max-height:400px; overflow-y:auto; }
+    .queue-scroll::-webkit-scrollbar { width:6px; }
+    .queue-scroll::-webkit-scrollbar-track { background:transparent; }
+    .queue-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
+  </style>
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var apiUpload = bgat.api.apiUpload;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'upload',
+      title: 'Upload Analysis',
+      subtitle: 'Upload PDF lab reports for automated parsing — bulk uploads supported'
+    });
+
+    var queue = [];       // {file, status:'pending'|'uploading'|'done'|'failed', result, error}
+    var isRunning = false;
+    var MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    var CONCURRENCY = 5;  // upload 5 at a time
+    var startTime = 0;
+
+    content.innerHTML = buildUI();
+    bindEvents();
+
+    /* ── UI Builder ── */
+    function buildUI() {
+      var html = '';
+
+      // Drop zone
+      html += '<div class="glass-card" style="padding:32px;margin-bottom:24px">';
+      html += '<div class="upload-zone-multi" id="uploadZone">';
+      html += c.ICONS.upload;
+      html += '<h3>Mass Upload Lab Reports</h3>';
+      html += '<p>Drag &amp; drop PDFs here, or use the buttons below</p>';
+      html += '<input type="file" id="fileInput" accept=".pdf" multiple style="display:none">';
+      html += '<input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">';
+      html += '<div class="upload-btn-row">';
+      html += '<button type="button" id="btnSelectFiles">Select Files</button>';
+      html += '<button type="button" id="btnSelectFolder">Select Entire Folder</button>';
+      html += '</div>';
+      html += '</div>';
+      html += '<div class="upload-actions">';
+      html += '<span id="queueCount" style="font-size:0.85rem;color:var(--white-dim)"></span>';
+      html += '<div style="display:flex;gap:12px">';
+      html += '<button class="btn-outline btn-sm" id="btnClear" disabled>Clear Queue</button>';
+      html += '<button class="btn-primary btn-sm" id="btnUpload" disabled style="min-width:140px">Upload All</button>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Overall progress (hidden until uploads start)
+      html += '<div id="overallProgress" style="display:none"></div>';
+
+      // Summary bar (hidden until uploads start)
+      html += '<div id="uploadSummary" style="display:none"></div>';
+
+      // Queue list
+      html += '<div id="uploadQueue" class="upload-queue"></div>';
+
+      // Results (shown after completion)
+      html += '<div id="uploadResults" style="display:none"></div>';
+
+      // Instructions
+      html += '<div class="glass-card" style="padding:24px;margin-top:24px">';
+      html += '<div class="section-label">Mass Upload Guide</div>';
+      html += '<div style="font-size:0.85rem;color:var(--white-dim);line-height:1.6">';
+      html += '<p style="margin:0 0 8px"><strong>Select Files:</strong> Choose individual PDFs from your computer. Hold Ctrl/Shift to select multiple.</p>';
+      html += '<p style="margin:0 0 8px"><strong>Select Folder:</strong> Upload an entire folder of PDFs at once — all subdirectories are included. Perfect for hundreds of reports.</p>';
+      html += '<p style="margin:0 0 8px"><strong>Drag &amp; Drop:</strong> Drag files or entire folders directly onto the upload zone.</p>';
+      html += '<p style="margin:0 0 8px">Reports are uploaded <strong>5 at a time</strong> in parallel with real-time progress tracking and time estimates.</p>';
+      html += '<p style="margin:0">Maximum file size: <strong>20 MB</strong> per PDF. Non-PDF files are automatically filtered out.</p>';
+      html += '</div>';
+      html += '</div>';
+
+      // Supported formats
+      html += '<div class="glass-card" style="padding:24px;margin-top:16px">';
+      html += '<div class="section-label">Supported Formats</div>';
+      html += '<div class="ion-grid">';
+      html += '<div class="ion-item"><span class="ion-label">DownHole SAT</span><span class="badge badge-success">Supported</span></div>';
+      html += '<div class="ion-item"><span class="ion-label">Stim-Lab</span><span class="badge badge-info">Planned</span></div>';
+      html += '<div class="ion-item"><span class="ion-label">Core Labs</span><span class="badge badge-info">Planned</span></div>';
+      html += '<div class="ion-item"><span class="ion-label">SGS</span><span class="badge badge-info">Planned</span></div>';
+      html += '</div>';
+      html += '</div>';
+
+      return html;
+    }
+
+    /* ── Event Binding ── */
+    function bindEvents() {
+      var zone = document.getElementById('uploadZone');
+      var input = document.getElementById('fileInput');
+      var folderInput = document.getElementById('folderInput');
+      var btnUpload = document.getElementById('btnUpload');
+      var btnClear = document.getElementById('btnClear');
+      var btnSelectFiles = document.getElementById('btnSelectFiles');
+      var btnSelectFolder = document.getElementById('btnSelectFolder');
+
+      zone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        zone.classList.add('dragover');
+      });
+      zone.addEventListener('dragleave', function() {
+        zone.classList.remove('dragover');
+      });
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        // Handle folder drops via DataTransferItem
+        if (e.dataTransfer.items) {
+          var files = [];
+          var pending = 0;
+          for (var i = 0; i < e.dataTransfer.items.length; i++) {
+            var item = e.dataTransfer.items[i];
+            if (item.kind === 'file') {
+              var entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+              if (entry && entry.isDirectory) {
+                pending++;
+                scanDirectory(entry, function(dirFiles) {
+                  files = files.concat(dirFiles);
+                  pending--;
+                  if (pending === 0) addFiles(files);
+                });
+              } else {
+                files.push(item.getAsFile());
+              }
+            }
+          }
+          if (pending === 0) addFiles(files);
+        } else {
+          addFiles(e.dataTransfer.files);
+        }
+      });
+
+      btnSelectFiles.addEventListener('click', function(e) { e.stopPropagation(); input.click(); });
+      btnSelectFolder.addEventListener('click', function(e) { e.stopPropagation(); folderInput.click(); });
+
+      input.addEventListener('change', function() {
+        addFiles(input.files);
+        input.value = '';
+      });
+
+      folderInput.addEventListener('change', function() {
+        addFiles(folderInput.files);
+        folderInput.value = '';
+      });
+
+      btnUpload.addEventListener('click', function() { startUploadAll(); });
+      btnClear.addEventListener('click', function() { clearQueue(); });
+    }
+
+    /* ── Scan dropped directory recursively ── */
+    function scanDirectory(dirEntry, callback) {
+      var files = [];
+      var reader = dirEntry.createReader();
+      function readAll() {
+        reader.readEntries(function(entries) {
+          if (entries.length === 0) {
+            callback(files);
+            return;
+          }
+          var pending = 0;
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].isFile) {
+              pending++;
+              entries[i].file(function(f) {
+                files.push(f);
+                pending--;
+                if (pending === 0) readAll();
+              });
+            } else if (entries[i].isDirectory) {
+              pending++;
+              scanDirectory(entries[i], function(subFiles) {
+                files = files.concat(subFiles);
+                pending--;
+                if (pending === 0) readAll();
+              });
+            }
+          }
+          if (pending === 0) readAll();
+        });
+      }
+      readAll();
+    }
+
+    /* ── Add Files to Queue ── */
+    function addFiles(fileList) {
+      if (isRunning) {
+        c.showToast('Upload in progress — wait for it to finish', 'error');
+        return;
+      }
+      var added = 0;
+      var skipped = 0;
+      var oversized = 0;
+      var list = fileList instanceof Array ? fileList : Array.prototype.slice.call(fileList);
+      for (var i = 0; i < list.length; i++) {
+        var f = list[i];
+        if (!f.name.toLowerCase().endsWith('.pdf')) { skipped++; continue; }
+        if (f.size > MAX_FILE_SIZE) {
+          oversized++;
+          continue;
+        }
+        // Avoid duplicates by name+size
+        var dup = false;
+        for (var j = 0; j < queue.length; j++) {
+          if (queue[j].file.name === f.name && queue[j].file.size === f.size) { dup = true; break; }
+        }
+        if (dup) { skipped++; continue; }
+        queue.push({ file: f, status: 'pending', result: null, error: null });
+        added++;
+      }
+      if (added > 0) {
+        c.showToast(added + ' PDF' + (added > 1 ? 's' : '') + ' added to queue' + (skipped ? ' (' + skipped + ' skipped)' : ''), 'success');
+      }
+      if (oversized > 0) {
+        c.showToast(oversized + ' file' + (oversized > 1 ? 's' : '') + ' exceeded 20 MB limit', 'error');
+      }
+      if (added === 0 && skipped > 0 && oversized === 0) {
+        c.showToast('No new PDF files to add', 'error');
+      }
+      renderQueue();
+      updateButtons();
+    }
+
+    /* ── Render Queue List ── */
+    function renderQueue() {
+      var el = document.getElementById('uploadQueue');
+      if (queue.length === 0) { el.innerHTML = ''; return; }
+
+      var html = '<div class="glass-card" style="padding:20px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+      html += '<span class="section-label">Upload Queue (' + queue.length + ' file' + (queue.length > 1 ? 's' : '') + ')</span>';
+      html += '</div>';
+      html += '<div class="queue-scroll">';
+
+      for (var i = 0; i < queue.length; i++) {
+        var q = queue[i];
+        var cls = 'uq-item';
+        if (q.status === 'done') cls += ' uq-done';
+        if (q.status === 'failed') cls += ' uq-fail';
+        if (q.status === 'uploading') cls += ' uq-active';
+
+        html += '<div class="' + cls + '" data-idx="' + i + '">';
+        html += '<span class="uq-name" title="' + c.escapeHtml(q.file.name) + '">' + c.escapeHtml(q.file.name) + '</span>';
+        html += '<span class="uq-size">' + formatSize(q.file.size) + '</span>';
+        html += '<div class="uq-bar"><div class="uq-bar-fill ' + q.status + '" style="width:' + barWidth(q) + '%"></div></div>';
+        html += '<span class="uq-status ' + q.status + '">' + statusLabel(q) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>'; // queue-scroll
+      html += '</div>'; // glass-card
+      el.innerHTML = html;
+    }
+
+    function barWidth(q) {
+      if (q.status === 'done') return 100;
+      if (q.status === 'failed') return 100;
+      if (q.status === 'uploading') return 50;
+      return 0;
+    }
+
+    function statusLabel(q) {
+      if (q.status === 'done') return 'Done';
+      if (q.status === 'failed') return 'Failed';
+      if (q.status === 'uploading') return 'Uploading...';
+      return 'Pending';
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function updateButtons() {
+      var pending = queue.filter(function(q) { return q.status === 'pending'; }).length;
+      var total = queue.length;
+      document.getElementById('btnUpload').disabled = pending === 0 || isRunning;
+      document.getElementById('btnUpload').textContent = isRunning ? 'Uploading...' : (pending > 0 ? 'Upload All (' + pending + ')' : 'Upload All');
+      document.getElementById('btnClear').disabled = isRunning;
+      var countEl = document.getElementById('queueCount');
+      if (countEl) {
+        var totalSize = 0;
+        queue.forEach(function(q) { totalSize += q.file.size; });
+        countEl.textContent = total > 0 ? total + ' files — ' + formatSize(totalSize) + ' total' : '';
+      }
+    }
+
+    /* ── Clear Queue ── */
+    function clearQueue() {
+      if (isRunning) return;
+      queue = [];
+      renderQueue();
+      updateButtons();
+      document.getElementById('uploadSummary').style.display = 'none';
+      document.getElementById('uploadResults').style.display = 'none';
+      document.getElementById('overallProgress').style.display = 'none';
+    }
+
+    /* ── Overall Progress Bar ── */
+    function renderOverallProgress() {
+      var el = document.getElementById('overallProgress');
+      var total = queue.length;
+      if (total === 0) { el.style.display = 'none'; return; }
+
+      el.style.display = 'block';
+      var done = queue.filter(function(q) { return q.status === 'done'; }).length;
+      var failed = queue.filter(function(q) { return q.status === 'failed'; }).length;
+      var completed = done + failed;
+      var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      var elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
+      var rate = elapsed > 0 && completed > 0 ? completed / elapsed : 0;
+      var remaining = rate > 0 ? Math.ceil((total - completed) / rate) : 0;
+      var eta = isRunning && remaining > 0 ? formatEta(remaining) : (isRunning ? 'calculating...' : 'complete');
+
+      var html = '<div class="overall-progress">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<span style="font-family:var(--font-heading);font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--cyan)">Mass Upload Progress</span>';
+      html += '<span style="font-size:1.2rem;font-weight:700;color:var(--white)">' + pct + '%</span>';
+      html += '</div>';
+      html += '<div class="overall-bar"><div class="overall-bar-fill" style="width:' + pct + '%"></div></div>';
+      html += '<div class="overall-stats">';
+      html += '<span>' + completed + ' / ' + total + ' processed</span>';
+      html += '<span>' + (done > 0 ? done + ' success' : '') + (failed > 0 ? (done > 0 ? ' · ' : '') + failed + ' failed' : '') + '</span>';
+      html += '<span>' + (isRunning ? 'ETA: ' + eta : elapsed > 0 ? 'Done in ' + elapsed.toFixed(1) + 's' : '') + '</span>';
+      html += '</div>';
+      html += '</div>';
+      el.innerHTML = html;
+    }
+
+    function formatEta(seconds) {
+      if (seconds < 60) return seconds + 's';
+      var m = Math.floor(seconds / 60);
+      var s = seconds % 60;
+      return m + 'm ' + s + 's';
+    }
+
+    /* ── Upload All (parallel with concurrency limit) ── */
+    async function startUploadAll() {
+      if (isRunning) return;
+      isRunning = true;
+      startTime = Date.now();
+      updateButtons();
+      renderSummary();
+      renderOverallProgress();
+
+      var pending = [];
+      for (var i = 0; i < queue.length; i++) {
+        if (queue[i].status === 'pending') pending.push(i);
+      }
+
+      // Process in batches of CONCURRENCY
+      var pos = 0;
+      while (pos < pending.length) {
+        var batch = pending.slice(pos, pos + CONCURRENCY);
+        var promises = batch.map(function(idx) { return uploadOne(idx); });
+        await Promise.all(promises);
+        pos += CONCURRENCY;
+        renderQueue();
+        renderSummary();
+        renderOverallProgress();
+      }
+
+      isRunning = false;
+      updateButtons();
+      renderSummary();
+      renderOverallProgress();
+      showCompletionResults();
+
+      var done = queue.filter(function(q) { return q.status === 'done'; }).length;
+      var failed = queue.filter(function(q) { return q.status === 'failed'; }).length;
+      var elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      if (failed === 0) {
+        c.showToast('All ' + done + ' reports uploaded in ' + elapsed + 's', 'success');
+      } else {
+        c.showToast(done + ' succeeded, ' + failed + ' failed (' + elapsed + 's)', 'error');
+      }
+    }
+
+    async function uploadOne(idx) {
+      var q = queue[idx];
+      q.status = 'uploading';
+      renderQueue();
+
+      try {
+        q.result = await apiUpload('/api/v1/samples/upload', q.file);
+        q.status = 'done';
+      } catch(e) {
+        q.status = 'failed';
+        q.error = e.message || 'Upload failed';
+      }
+    }
+
+    /* ── Summary Bar ── */
+    function renderSummary() {
+      var el = document.getElementById('uploadSummary');
+      el.style.display = 'block';
+
+      var total = queue.length;
+      var done = queue.filter(function(q) { return q.status === 'done'; }).length;
+      var failed = queue.filter(function(q) { return q.status === 'failed'; }).length;
+      var uploading = queue.filter(function(q) { return q.status === 'uploading'; }).length;
+      var pending = total - done - failed - uploading;
+
+      var html = '<div class="upload-summary">';
+      html += sumCard(total, 'Total', 'var(--white)');
+      html += sumCard(done, 'Done', '#22c55e');
+      html += sumCard(failed, 'Failed', '#ef4444');
+      html += sumCard(uploading + pending, 'Remaining', 'var(--cyan)');
+      html += '</div>';
+      el.innerHTML = html;
+    }
+
+    function sumCard(val, label, color) {
+      return '<div class="us-card"><div class="us-card-val" style="color:' + color + '">' + val + '</div><div class="us-card-label">' + label + '</div></div>';
+    }
+
+    /* ── Completion Results ── */
+    function showCompletionResults() {
+      var el = document.getElementById('uploadResults');
+      var completed = queue.filter(function(q) { return q.status === 'done' && q.result; });
+      if (completed.length === 0) { el.style.display = 'none'; return; }
+
+      el.style.display = 'block';
+      var html = '<div class="glass-card" style="padding:24px;margin-top:24px">';
+      html += '<div class="section-label" style="margin-bottom:16px">Parsed Results (' + completed.length + ')</div>';
+      html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+      html += '<th>File</th><th>Well</th><th>Sample Date</th><th>Lab ID</th><th>TDS</th><th>pH</th><th>Cl</th><th>Ion Bal %</th><th>Scale Rows</th>';
+      html += '</tr></thead><tbody>';
+
+      completed.forEach(function(q) {
+        var s = q.result;
+        html += '<tr class="results-toggle" data-detail="detail-' + q.file.name.replace(/[^a-zA-Z0-9]/g,'_') + '">';
+        html += '<td style="color:var(--cyan)">' + c.escapeHtml(q.file.name) + '</td>';
+        html += '<td>' + wellMatchLabel(s) + '</td>';
+        html += '<td>' + c.formatDate(s.sample_date) + '</td>';
+        html += '<td>' + c.escapeHtml(s.lab_id || '—') + '</td>';
+        html += '<td>' + c.formatNumber(s.tds) + '</td>';
+        html += '<td>' + c.formatNumber(s.sample_ph, 2) + '</td>';
+        html += '<td>' + c.formatNumber(s.chloride) + '</td>';
+        html += '<td>' + c.formatNumber(s.ion_balance_pct, 2) + '</td>';
+        html += '<td>' + (s.scale_rows_parsed || '—') + '</td>';
+        html += '</tr>';
+
+        // Expandable detail row
+        html += '<tr><td colspan="9" style="padding:0;border:none">';
+        html += '<div class="result-detail" id="detail-' + q.file.name.replace(/[^a-zA-Z0-9]/g,'_') + '">';
+        html += buildIonDetail(s);
+        html += '</div>';
+        html += '</td></tr>';
+      });
+
+      html += '</tbody></table></div>';
+
+      // Failed files
+      var failed = queue.filter(function(q) { return q.status === 'failed'; });
+      if (failed.length > 0) {
+        html += '<div class="section-label" style="margin-top:20px;color:#ef4444">Failed (' + failed.length + ')</div>';
+        failed.forEach(function(q) {
+          html += '<div style="padding:8px 0;font-size:0.85rem">';
+          html += '<span style="color:var(--white)">' + c.escapeHtml(q.file.name) + '</span>';
+          html += ' — <span style="color:#ef4444">' + c.escapeHtml(q.error) + '</span>';
+          html += '</div>';
+        });
+      }
+
+      html += '</div>';
+      el.innerHTML = html;
+
+      // Bind expand/collapse on result rows
+      el.querySelectorAll('.results-toggle').forEach(function(row) {
+        row.addEventListener('click', function() {
+          var detId = row.getAttribute('data-detail');
+          var det = document.getElementById(detId);
+          if (det) det.classList.toggle('open');
+        });
+      });
+    }
+
+    function wellMatchLabel(s) {
+      var name = c.escapeHtml(s.well_name || '—');
+      var type = s.well_match_type;
+      if (type === 'fuzzy') {
+        return '<span title="Fuzzy matched to existing well">' + name + '</span> <span class="badge badge-info" style="font-size:0.65rem">fuzzy</span>';
+      }
+      if (type === 'exact') {
+        return '<span title="Exact match">' + name + '</span> <span class="badge badge-success" style="font-size:0.65rem">matched</span>';
+      }
+      if (type === 'new') {
+        return '<span title="New well created">' + name + '</span> <span class="badge" style="font-size:0.65rem;background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3)">new</span>';
+      }
+      return name;
+    }
+
+    function buildIonDetail(s) {
+      var ions = [
+        ['Calcium', s.calcium], ['Magnesium', s.magnesium],
+        ['Sodium', s.sodium], ['Potassium', s.potassium],
+        ['Barium', s.barium], ['Strontium', s.strontium],
+        ['Iron', s.iron], ['Manganese', s.manganese],
+        ['Sulfate', s.sulfate], ['H2S', s.h2s],
+        ['Conductivity', s.conductivity], ['Sp. Gravity', s.specific_gravity]
+      ];
+      var html = '<div class="ion-grid" style="margin:8px 0">';
+      ions.forEach(function(pair) {
+        if (pair[1] != null) {
+          html += '<div class="ion-item"><span class="ion-label">' + pair[0] + '</span><span class="ion-value">' + c.formatNumber(pair[1]) + '</span></div>';
+        }
+      });
+      html += '</div>';
+      if (s.well_id) {
+        html += '<a href="well-detail.html?id=' + encodeURIComponent(s.well_id) + '" class="btn-primary btn-sm" style="margin-top:8px;display:inline-block;text-decoration:none">View Well →</a>';
+      }
+      if (s.validation_status === 'validated') {
+        html += '<p style="font-size:0.8rem;color:#22c55e;margin-top:8px">Ion balance validated (' + c.formatNumber(s.ion_balance_pct, 2) + '%)</p>';
+      }
+      return html;
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+TRANSCRIPTION: jp Business discussion 1.m4a
+Duration: 877.3s (~14.6 min)
+Language: en
+Transcribed in: 1452.0s
+================================================================================
+
+[00:00] And I would also say try to keep that information separate that way if it doesn't add up if it doesn't look legitimate
+[00:09] we can
+[00:11] It we're not it's not diluting anything else. We've already any other information. We've already got
+[00:17] I will I will try to get all of my CWA's move to one folder
+[00:23] And just share that folder with you later today
+[00:25] Okay
+[00:28] Google Drive forever sometimes the move shit
+[00:31] It does but I mean that's it. That's about the best way. I want to let you know also on my my Google account
+[00:38] I've got three different
+[00:40] Accounts that I pay for on Google and I've got two terabytes apiece
+[00:44] So if we need storage space, I've got quite a bit
+[00:47] Okay, so you of course in the big in the big picture that might not be much
+[00:52] But I just want you aware of that I can store data in several places
+[00:56] eventually will be I mean
+[00:58] 100 terabytes on cloud fair is
+[01:02] $1,500 a month right around there
+[01:05] Okay, I mean
+[01:07] You know and plus, you know, I'm sitting I'm scraping county records out of every count oil and gas
+[01:12] Counties and now I'm even going after genealogy records for
+[01:17] Projects, so I mean, it's okay
+[01:20] Yeah, but uh, yeah, I mean honestly it might might be something to look at especially
+[01:26] Depending on how many thousands of reports we start
+[01:30] Yeah, yeah, well I
+[01:34] Mean really it's it's just building the database and then plugging it in, you know, and then making sure that any
+[01:42] Any wells or locations that have more than one or two
+[01:46] Making sure that those start to average out, you know, we don't want to delete them unless they're duplicates
+[01:53] You know, but if if someone did an analysis this year and do it does another one next year in the year after that's three different points
+[01:59] And you want to make sure we average that out. Do you want to average?
+[02:02] Oh, did you keep the last one?
+[02:05] You want to average it, but you also we also will need to develop it so that it points out any
+[02:12] any
+[02:14] Any extreme
+[02:17] Fluctuation yeah, so like if iron
+[02:20] Iron if manganese goes from like one or two milligrams per liter up to like ten
+[02:25] That's a huge indicator that there's a that there's corrosion in the pipe
+[02:31] You know, so we that's what I'm saying it's gonna take quite a bit of adjusting to get this to work, right?
+[02:38] But yeah, you don't want to do the last one you want to it's got to be a baseline
+[02:43] It's got to be an average
+[02:45] Okay
+[02:46] All right, and that's scraping all you want to scrape for is this for those type of reports specifically for yeah
+[02:52] Oh, I would say just start with oil filled water analysis
+[02:58] Start there and then
+[03:01] I'll send you a few other
+[03:04] Types of analysis we will need to look for but they're specific to where to what's being treated. So like a millipore
+[03:11] That's not on a well that's on a SWD
+[03:15] So, you know, that's a whole that's a different type of equipment, right? So
+[03:20] And I'll be honest with you. I'll be surprised if you really get a lot of information a lot of that proprietary
+[03:26] A lot of companies don't it's not online
+[03:29] Unless you know we can tap into someone's database like coastal, you know coastal has their own
+[03:36] Platform for a lab management and they store all of their data in there
+[03:40] So, yeah, I mean we could do that you would be surprised
+[03:43] If you could send me the list of people who would have that information like so I
+[03:49] You know the engines I made or whatever. I got about I don't know 13 reverse engineering engines
+[03:56] And I pointed on Matt some websites this weekend and it was jaw-dropping what it was able to pull
+[04:03] I'm just you know, it's usually these are databases that require logins
+[04:08] I don't know how we get around that you might know better than me. So a lot of these people don't I guess they're not really
+[04:14] prepared for
+[04:17] Autonomous reverse engineering. I don't I'm not sure but man, I'm telling you they're not a lot of these a lot of the
+[04:23] There's still a lot of old timers around that are struggling to adapt to
+[04:26] A lot of them still struggle to adapt to just having a website, you know
+[04:36] Give me so much shit all kinds of like API's and
+[04:40] Oh, yeah, it's configuration secrets and shit. I was like wow
+[04:45] I mean, that's like I need to call these people and make some money pen testing
+[04:50] I need to call these people and make some money pen testing
+[04:55] I'll tell you what I wanted to do man here in the last four or five years before AI really took off
+[05:00] You know, I had a minimum
+[05:01] I just wanted to call and offer a lot of these companies to just build them a generic website and manage it for them
+[05:09] You know, which wouldn't take much they don't sell their products on their website
+[05:13] Nobody really does that in oilfield chemicals, which by the way, that's something I wanted
+[05:18] Want us to do and I've got another friend that I'm trying to get his expertise on that
+[05:27] But man a lot of these companies they just need a landing page and then the basics who we are how to contact us
+[05:33] And then just manage that form, you know and and start to incorporate a lot of this in there or handle phone calls
+[05:40] For them or something like that, you know
+[05:43] Yeah, man, but anyways, I still haven't had my AI
+[05:48] Sales agent call you I should do that
+[06:00] I thought there was something else you were wanting to scrape for for some reason. I thought there was multiple things, but it was just the reports
+[06:07] the reports at first
+[06:10] I doubt you could find any chemical pricing that if you wanted to try that
+[06:14] The problem is a lot of products we deal with are so specialized
+[06:19] I don't even I wouldn't even really know what to name them for the for AI to look them up
+[06:24] You know, just give me some of your competitors names
+[06:30] Champion X
+[06:34] Champion X coastal camera
+[06:45] Hey, yeah, I apologize my damn phone died you're saying champion X and who else
+[06:59] Aquarius chemical
+[07:04] Basing chemical
+[07:09] Big Mesa, but no, I'm sorry not big Mesa jcan
+[07:14] I
+[07:16] Said champion X
+[07:19] Coastal chemical, okay core chemical
+[07:29] Corrosion LTD
+[07:36] Credence I incorporated or IMC
+[07:44] Oh
+[07:48] Enduro tech that's two different two separate words in your attack
+[07:56] Energy flow
+[08:03] And imperative
+[08:10] Infinity energy solutions
+[08:14] And all these people play websites
+[08:19] Yeah
+[08:27] I doubt any of them store it but I mean
+[08:35] You got enough spec did I give you that one already I'm not sure but yeah just
+[08:39] List them off just to give you a little context I do like I record these conversations just so I can
+[08:46] Have the AI go back and transcribe them a my memory service
+[08:50] Be it's a lot better for me and the AI because he will he'll just start making this
+[08:55] projects for the
+[08:58] Right off of our conversations
+[09:02] Integrity industries, okay interface treating
+[09:09] I
+[09:12] Let's see here max flow
+[09:21] OT oil-filled chemicals perfect chemical solutions
+[09:34] You know got about 1050 as I mean they're actually I've got a lot more but
+[09:39] I
+[09:42] See here
+[09:46] Revive energy solutions
+[09:52] SGB solutions
+[09:59] Soul Nexus as well any X us
+[10:06] Solu gen Sol
+[10:09] In
+[10:14] Specialty intermediates
+[10:19] True cam solutions
+[10:32] Also like
+[10:36] Don't use the
+[10:39] Message, you know the voice message text option, but you can use the audio
+[10:48] Recorder option on your phone
+[10:51] Okay, not the one we're just sending a audio text message because those disappear
+[10:57] But if you'll send the other one that's in your iPhone, it's like a voice
+[11:03] Right you can send me those and then I'll just plug it right in and it transcribes it
+[11:09] To the projects and things like that
+[11:13] So that you hopped on your cloud earlier, I don't know if you notice one thing I was building on there was that a
+[11:20] notebook
+[11:22] Yeah, I didn't I really didn't look I got in there typed in a couple of things and then I really didn't have time to browse
+[11:29] I was just wanting to get logged in
+[11:30] I was actually trying to look at how much storage or memory we got but I guess it works a little different than
+[11:36] Traditional storage so yeah, so it has a memory of the main storage of course is your your hard drive
+[11:45] You know, it's one reason why I didn't know if you use a laptop or a computer
+[11:50] Depending if you were actually wanting to use Claude like like this notebook for instance
+[11:55] You know, I would go on your computer and download some things on there some extensions for Claude basically
+[12:02] That will make him a
+[12:04] million times more
+[12:06] Efficient capable than what he is right now. This is things that me and caught a built for him specifically over the last year
+[12:13] Right substantial. I think I got like 30 extensions built for Claude. Oh
+[12:18] Wow. Yeah, okay. Yeah when we get one we have some time we'll sit down
+[12:22] Just so you know, I've got to leave
+[12:24] Excuse me. I only for Oklahoma here in about three hours. So you are all over the place. I am and
+[12:31] I am
+[12:35] You know, my family was supposed to go with me on this trip, but we decided not to so
+[12:40] That's it for now. Let's work with those. So what you can get that's the big ones. Okay
+[12:49] You might try I give you champion X or did you say champion X
+[12:53] You tell me that
+[12:59] Champion X imperative and coastal those are gonna be some huge databases if we can tap into those somehow
+[13:10] No, that's um
+[13:13] Well, they may
+[13:15] When I was there they weren't doing that but I know they bought a bunch of tankers here lately
+[13:19] So they may be doing that now then like Suncoast is that one or
+[13:24] Well, yeah, Suncoast does that Suncoast not coastal. Maybe maybe that's what you're thinking is Suncoast
+[13:31] That's all that they do is fuels and solvents
+[13:38] Yep, all right
+[13:40] I'll get going and then I'm for the new website
+[13:45] I've been sitting there tossing several around like Aqua Intel or Geo Intel
+[13:51] Or Intel effects Intel X. I don't know
+[13:55] All right, so I made a sub domain where I'm putting all this on it's just called JP
+[14:01] I like it. I mean it sounds good to me, but I doubt it'll fly
+[14:04] So
+[14:07] JP water analysis, but uh, just whatever whatever you think of some of those actually sounded pretty cool
+[14:14] Yeah, yeah, I just haven't got to look up whether domains are available or what the status is
+[14:20] Everyone you just listed. They'll check those and then see what's available
+[14:26] I'll send you the list. I'm driving right now. Give me a little bit. I'll send you the list of several names
+[14:31] I've thought of yeah, just put them on those voice memos and send them my way
+[14:34] Okay, sounds good
+
+================================================================================
+
+FULL TEXT:
+
+And I would also say try to keep that information separate that way if it doesn't add up if it doesn't look legitimate we can It we're not it's not diluting anything else. We've already any other information. We've already got I will I will try to get all of my CWA's move to one folder And just share that folder with you later today Okay Google Drive forever sometimes the move shit It does but I mean that's it. That's about the best way. I want to let you know also on my my Google account I've got three different Accounts that I pay for on Google and I've got two terabytes apiece So if we need storage space, I've got quite a bit Okay, so you of course in the big in the big picture that might not be much But I just want you aware of that I can store data in several places eventually will be I mean 100 terabytes on cloud fair is $1,500 a month right around there Okay, I mean You know and plus, you know, I'm sitting I'm scraping county records out of every count oil and gas Counties and now I'm even going after genealogy records for Projects, so I mean, it's okay Yeah, but uh, yeah, I mean honestly it might might be something to look at especially Depending on how many thousands of reports we start Yeah, yeah, well I Mean really it's it's just building the database and then plugging it in, you know, and then making sure that any Any wells or locations that have more than one or two Making sure that those start to average out, you know, we don't want to delete them unless they're duplicates You know, but if if someone did an analysis this year and do it does another one next year in the year after that's three different points And you want to make sure we average that out. Do you want to average? Oh, did you keep the last one? You want to average it, but you also we also will need to develop it so that it points out any any Any extreme Fluctuation yeah, so like if iron Iron if manganese goes from like one or two milligrams per liter up to like ten That's a huge indicator that there's a that there's corrosion in the pipe You know, so we that's what I'm saying it's gonna take quite a bit of adjusting to get this to work, right? But yeah, you don't want to do the last one you want to it's got to be a baseline It's got to be an average Okay All right, and that's scraping all you want to scrape for is this for those type of reports specifically for yeah Oh, I would say just start with oil filled water analysis Start there and then I'll send you a few other Types of analysis we will need to look for but they're specific to where to what's being treated. So like a millipore That's not on a well that's on a SWD So, you know, that's a whole that's a different type of equipment, right? So And I'll be honest with you. I'll be surprised if you really get a lot of information a lot of that proprietary A lot of companies don't it's not online Unless you know we can tap into someone's database like coastal, you know coastal has their own Platform for a lab management and they store all of their data in there So, yeah, I mean we could do that you would be surprised If you could send me the list of people who would have that information like so I You know the engines I made or whatever. I got about I don't know 13 reverse engineering engines And I pointed on Matt some websites this weekend and it was jaw-dropping what it was able to pull I'm just you know, it's usually these are databases that require logins I don't know how we get around that you might know better than me. So a lot of these people don't I guess they're not really prepared for Autonomous reverse engineering. I don't I'm not sure but man, I'm telling you they're not a lot of these a lot of the There's still a lot of old timers around that are struggling to adapt to A lot of them still struggle to adapt to just having a website, you know Give me so much shit all kinds of like API's and Oh, yeah, it's configuration secrets and shit. I was like wow I mean, that's like I need to call these people and make some money pen testing I need to call these people and make some money pen testing I'll tell you what I wanted to do man here in the last four or five years before AI really took off You know, I had a minimum I just wanted to call and offer a lot of these companies to just build them a generic website and manage it for them You know, which wouldn't take much they don't sell their products on their website Nobody really does that in oilfield chemicals, which by the way, that's something I wanted Want us to do and I've got another friend that I'm trying to get his expertise on that But man a lot of these companies they just need a landing page and then the basics who we are how to contact us And then just manage that form, you know and and start to incorporate a lot of this in there or handle phone calls For them or something like that, you know Yeah, man, but anyways, I still haven't had my AI Sales agent call you I should do that I thought there was something else you were wanting to scrape for for some reason. I thought there was multiple things, but it was just the reports the reports at first I doubt you could find any chemical pricing that if you wanted to try that The problem is a lot of products we deal with are so specialized I don't even I wouldn't even really know what to name them for the for AI to look them up You know, just give me some of your competitors names Champion X Champion X coastal camera Hey, yeah, I apologize my damn phone died you're saying champion X and who else Aquarius chemical Basing chemical Big Mesa, but no, I'm sorry not big Mesa jcan I Said champion X Coastal chemical, okay core chemical Corrosion LTD Credence I incorporated or IMC Oh Enduro tech that's two different two separate words in your attack Energy flow And imperative Infinity energy solutions And all these people play websites Yeah I doubt any of them store it but I mean You got enough spec did I give you that one already I'm not sure but yeah just List them off just to give you a little context I do like I record these conversations just so I can Have the AI go back and transcribe them a my memory service Be it's a lot better for me and the AI because he will he'll just start making this projects for the Right off of our conversations Integrity industries, okay interface treating I Let's see here max flow OT oil-filled chemicals perfect chemical solutions You know got about 1050 as I mean they're actually I've got a lot more but I See here Revive energy solutions SGB solutions Soul Nexus as well any X us Solu gen Sol In Specialty intermediates True cam solutions Also like Don't use the Message, you know the voice message text option, but you can use the audio Recorder option on your phone Okay, not the one we're just sending a audio text message because those disappear But if you'll send the other one that's in your iPhone, it's like a voice Right you can send me those and then I'll just plug it right in and it transcribes it To the projects and things like that So that you hopped on your cloud earlier, I don't know if you notice one thing I was building on there was that a notebook Yeah, I didn't I really didn't look I got in there typed in a couple of things and then I really didn't have time to browse I was just wanting to get logged in I was actually trying to look at how much storage or memory we got but I guess it works a little different than Traditional storage so yeah, so it has a memory of the main storage of course is your your hard drive You know, it's one reason why I didn't know if you use a laptop or a computer Depending if you were actually wanting to use Claude like like this notebook for instance You know, I would go on your computer and download some things on there some extensions for Claude basically That will make him a million times more Efficient capable than what he is right now. This is things that me and caught a built for him specifically over the last year Right substantial. I think I got like 30 extensions built for Claude. Oh Wow. Yeah, okay. Yeah when we get one we have some time we'll sit down Just so you know, I've got to leave Excuse me. I only for Oklahoma here in about three hours. So you are all over the place. I am and I am You know, my family was supposed to go with me on this trip, but we decided not to so That's it for now. Let's work with those. So what you can get that's the big ones. Okay You might try I give you champion X or did you say champion X You tell me that Champion X imperative and coastal those are gonna be some huge databases if we can tap into those somehow No, that's um Well, they may When I was there they weren't doing that but I know they bought a bunch of tankers here lately So they may be doing that now then like Suncoast is that one or Well, yeah, Suncoast does that Suncoast not coastal. Maybe maybe that's what you're thinking is Suncoast That's all that they do is fuels and solvents Yep, all right I'll get going and then I'm for the new website I've been sitting there tossing several around like Aqua Intel or Geo Intel Or Intel effects Intel X. I don't know All right, so I made a sub domain where I'm putting all this on it's just called JP I like it. I mean it sounds good to me, but I doubt it'll fly So JP water analysis, but uh, just whatever whatever you think of some of those actually sounded pretty cool Yeah, yeah, I just haven't got to look up whether domains are available or what the status is Everyone you just listed. They'll check those and then see what's available I'll send you the list. I'm driving right now. Give me a little bit. I'll send you the list of several names I've thought of yeah, just put them on those voice memos and send them my way Okay, sounds good

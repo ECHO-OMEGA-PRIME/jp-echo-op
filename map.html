@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formation Map — Aqua Pulse</title>
+  <meta name="description" content="Interactive geospatial water chemistry map of the Permian Basin with formation heat maps and geological cross-section cutaway.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/map.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260329">
+  <style>
+    .map-info-window { font-family: var(--font-body); color: #1a1a1a; }
+    .map-info-window h4 { font-family: var(--font-heading); font-weight: 700; margin-bottom: 4px; }
+    .map-info-window p { font-size: 0.85rem; margin: 2px 0; }
+    .map-info-window .map-link { color: #00d4ff; font-weight: 600; text-decoration: none; }
+
+    /* ── Map + Cutaway Layout ── */
+    .map-cutaway-wrapper {
+      display: flex;
+      height: calc(100vh - 180px);
+      gap: 0;
+      position: relative;
+    }
+    .map-cutaway-wrapper .map-container {
+      flex: 1;
+      height: 100%;
+      min-width: 0;
+      transition: flex 0.3s ease;
+    }
+    .map-cutaway-wrapper.panel-open .map-container {
+      flex: 1;
+    }
+
+    /* ── Cutaway Panel ── */
+    .cutaway-panel {
+      width: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border-left: 1px solid rgba(0,212,255,0.15);
+      transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      flex-direction: column;
+    }
+    .map-cutaway-wrapper.panel-open .cutaway-panel {
+      width: 420px;
+    }
+    @media (max-width: 900px) {
+      .map-cutaway-wrapper.panel-open .cutaway-panel { width: 100%; }
+      .map-cutaway-wrapper.panel-open { flex-direction: column; }
+      .map-cutaway-wrapper.panel-open .map-container { height: 50%; flex: none; }
+      .map-cutaway-wrapper.panel-open .cutaway-panel { height: 50%; width: 100%; border-left: none; border-top: 1px solid rgba(0,212,255,0.15); }
+    }
+
+    .cutaway-header {
+      padding: 16px;
+      border-bottom: 1px solid rgba(0,212,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .cutaway-header h3 {
+      font-family: var(--font-heading);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--white);
+      margin: 0;
+    }
+    .cutaway-close {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--white-dim);
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .cutaway-close:hover { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #ef4444; }
+
+    .cutaway-meta {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(0,212,255,0.08);
+      font-size: 0.78rem;
+      color: var(--white-dim);
+      flex-shrink: 0;
+    }
+    .cutaway-meta strong { color: var(--cyan); }
+
+    .cutaway-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .cutaway-body::-webkit-scrollbar { width: 6px; }
+    .cutaway-body::-webkit-scrollbar-track { background: transparent; }
+    .cutaway-body::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 3px; }
+
+    /* ── Formation Layer Bars ── */
+    .formation-layer {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.2s;
+      cursor: default;
+    }
+    .formation-layer:hover {
+      background: rgba(0,212,255,0.04);
+    }
+    .formation-layer.has-data {
+      cursor: pointer;
+    }
+    .formation-layer.active {
+      background: rgba(0,212,255,0.08);
+    }
+
+    .fl-depth {
+      width: 70px;
+      flex-shrink: 0;
+      padding: 10px 8px;
+      text-align: right;
+      font-size: 0.65rem;
+      font-family: var(--font-body);
+      color: rgba(255,255,255,0.35);
+      border-right: 2px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      line-height: 1.3;
+    }
+    .fl-depth span { display: block; }
+
+    .fl-bar {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      gap: 10px;
+      min-height: 48px;
+    }
+    .fl-color-swatch {
+      width: 8px;
+      border-radius: 4px;
+      align-self: stretch;
+      flex-shrink: 0;
+    }
+    .fl-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .fl-name {
+      font-family: var(--font-heading);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fl-age {
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.35);
+      margin-top: 1px;
+    }
+    .fl-stats {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .fl-stat {
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.12);
+      border-radius: 4px;
+      padding: 3px 7px;
+      font-size: 0.68rem;
+      color: var(--cyan);
+      font-family: var(--font-body);
+      white-space: nowrap;
+    }
+    .fl-stat.no-data {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ── Expanded ion detail below a formation layer ── */
+    .fl-detail {
+      display: none;
+      padding: 10px 16px 14px 90px;
+      background: rgba(0,0,0,0.15);
+      border-bottom: 1px solid rgba(0,212,255,0.06);
+    }
+    .fl-detail.open { display: block; }
+    .fl-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .fl-ion-item {
+      background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.08);
+      border-radius: 4px;
+      padding: 5px 8px;
+    }
+    .fl-ion-label {
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .fl-ion-value {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-top: 1px;
+    }
+
+    /* ── Radius circle on map ── */
+    .cutaway-mode-controls {
+      padding: 10px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(0,212,255,0.08);
+    }
+    .mode-btn {
+      padding: 5px 12px;
+      font-size: 0.72rem;
+      font-family: var(--font-heading);
+      border: 1px solid rgba(0,212,255,0.2);
+      background: transparent;
+      color: var(--white-dim);
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: rgba(0,212,255,0.15);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+    .radius-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .radius-control label {
+      font-size: 0.68rem;
+      color: var(--white-dim);
+    }
+    .radius-control input[type="range"] {
+      width: 80px;
+      accent-color: var(--cyan);
+    }
+    .radius-control .radius-val {
+      font-size: 0.72rem;
+      color: var(--cyan);
+      font-weight: 600;
+      min-width: 32px;
+    }
+
+    /* ── Loading state ── */
+    .cutaway-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+      color: var(--white-dim);
+      font-size: 0.85rem;
+    }
+    .cutaway-loading .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(0,212,255,0.2);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Map click crosshair ── */
+    .map-crosshair { cursor: crosshair !important; }
+    .map-crosshair * { cursor: crosshair !important; }
+  </style>
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260329"></script>
+  <script src="assets/js/auth.js?v=20260329"></script>
+  <script src="assets/js/common.js?v=20260329"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'map',
+      title: 'Formation Map',
+      subtitle: 'Interactive geospatial water chemistry & geological cross-section'
+    });
+
+    var map = null;
+    var markers = [];
+    var wellDataMap = {};
+    var heatmapLayer = null;
+    var infoWindow = null;
+    var selectedIon = 'tds';
+    var radiusCircle = null;
+    var cutawayMode = 'cluster'; // 'cluster' or 'single'
+    var cutawayRadius = 10;
+    var panelOpen = false;
+
+    // Ion display names (JP: rename H2S to "Dissolved H2S")
+    var ION_LABELS = {
+      tds: 'TDS', chloride: 'Chloride', calcium: 'Calcium', barium: 'Barium',
+      iron: 'Iron', manganese: 'Manganese', h2s: 'Dissolved H2S',
+      sulfate: 'Sulfate', sodium: 'Sodium'
+    };
+
+    // Formation color palette (geology-inspired)
+    var FORMATION_COLORS = {
+      'San Andres':              '#e8a838',
+      'Clearfork':               '#d4763c',
+      'Glorieta':                '#c4a035',
+      'Spraberry':               '#7cb342',
+      'Dean':                    '#4caf50',
+      'Wolfcamp A':              '#26a69a',
+      'Wolfcamp B':              '#009688',
+      'Wolfcamp C':              '#00796b',
+      'Wolfcamp D':              '#004d40',
+      'Cisco':                   '#5c6bc0',
+      'Canyon':                  '#3f51b5',
+      'Strawn':                  '#303f9f',
+      'Atoka':                   '#283593',
+      'Mississippian':           '#6a1b9a',
+      'Devonian':                '#4a148c',
+      'Ellenburger':             '#880e4f',
+      'Bone Spring 1':           '#42a5f5',
+      'Bone Spring 2':           '#1e88e5',
+      'Bone Spring 3':           '#1565c0',
+      'Delaware Mountain Group': '#ef6c00',
+    };
+    function getFormationColor(name) {
+      return FORMATION_COLORS[name] || '#607d8b';
+    }
+
+    // ── Build Layout ──
+    var html = '';
+    html += '<div class="map-controls" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">';
+    html += '<label style="font-family:var(--font-heading);font-size:0.75rem;color:var(--white-dim);text-transform:uppercase;letter-spacing:1px">Heatmap Ion:</label>';
+    html += '<select id="mapIonSelect" style="padding:6px 12px;background:var(--surface);border:1px solid rgba(0,212,255,0.2);border-radius:4px;color:var(--white);font-family:var(--font-body)">';
+    ['tds','chloride','calcium','barium','iron','manganese','h2s','sulfate','sodium'].forEach(function(ion) {
+      html += '<option value="' + ion + '"' + (ion === 'tds' ? ' selected' : '') + '>' + (ION_LABELS[ion] || ion.toUpperCase()) + '</option>';
+    });
+    html += '</select>';
+    html += '<button class="btn-outline btn-sm" id="toggleHeatmap">Toggle Heatmap</button>';
+    html += '<button class="btn-outline btn-sm" id="toggleMarkers">Toggle Markers</button>';
+    html += '<div style="margin-left:auto;display:flex;gap:8px">';
+    html += '<button class="btn-outline btn-sm" id="btnCutaway" style="border-color:var(--cyan);color:var(--cyan)">⛏ Formation Cutaway</button>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div id="mapCutawayWrapper" class="map-cutaway-wrapper">';
+    html += '<div id="mapDiv" class="map-container" style="background:var(--surface);display:flex;align-items:center;justify-content:center">';
+    html += '<p style="color:var(--white-dim)">Loading map...</p>';
+    html += '</div>';
+
+    // Cutaway Panel
+    html += '<div id="cutawayPanel" class="cutaway-panel">';
+    html += '<div class="cutaway-header"><h3 id="cutawayTitle">Formation Cross-Section</h3><button class="cutaway-close" id="cutawayClose">&times;</button></div>';
+    html += '<div class="cutaway-mode-controls">';
+    html += '<button class="mode-btn active" id="modeCluster">Cluster</button>';
+    html += '<button class="mode-btn" id="modeSingle">Single Well</button>';
+    html += '<div class="radius-control" id="radiusCtrl">';
+    html += '<label>Radius:</label>';
+    html += '<input type="range" id="radiusSlider" min="1" max="50" value="10">';
+    html += '<span class="radius-val" id="radiusVal">10 mi</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '<div class="cutaway-meta" id="cutawayMeta">Click on the map to select a location for cluster analysis, or click a well marker for single-well view.</div>';
+    html += '<div class="cutaway-body" id="cutawayBody"></div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    content.innerHTML = html;
+
+    // ── Element refs ──
+    var wrapper = document.getElementById('mapCutawayWrapper');
+    var panel = document.getElementById('cutawayPanel');
+    var cutawayBody = document.getElementById('cutawayBody');
+    var cutawayMeta = document.getElementById('cutawayMeta');
+    var cutawayTitle = document.getElementById('cutawayTitle');
+    var modeClusterBtn = document.getElementById('modeCluster');
+    var modeSingleBtn = document.getElementById('modeSingle');
+    var radiusSlider = document.getElementById('radiusSlider');
+    var radiusVal = document.getElementById('radiusVal');
+    var radiusCtrl = document.getElementById('radiusCtrl');
+
+    // ── Panel toggle ──
+    function openPanel() {
+      panelOpen = true;
+      wrapper.classList.add('panel-open');
+      setTimeout(function() { if (map) google.maps.event.trigger(map, 'resize'); }, 400);
+    }
+    function closePanel() {
+      panelOpen = false;
+      wrapper.classList.remove('panel-open');
+      if (radiusCircle) { radiusCircle.setMap(null); radiusCircle = null; }
+      document.getElementById('mapDiv').classList.remove('map-crosshair');
+      setTimeout(function() { if (map) google.maps.event.trigger(map, 'resize'); }, 400);
+    }
+
+    document.getElementById('cutawayClose').addEventListener('click', closePanel);
+    document.getElementById('btnCutaway').addEventListener('click', function() {
+      if (panelOpen) { closePanel(); return; }
+      openPanel();
+      cutawayMeta.textContent = cutawayMode === 'cluster'
+        ? 'Click anywhere on the map to analyze nearby wells by formation.'
+        : 'Click a well marker for single-well formation view.';
+      cutawayBody.innerHTML = '<div style="padding:30px 16px;text-align:center;color:var(--white-dim);font-size:0.85rem">Click on the map to begin</div>';
+      if (cutawayMode === 'cluster') {
+        document.getElementById('mapDiv').classList.add('map-crosshair');
+      }
+    });
+
+    // ── Mode switching ──
+    modeClusterBtn.addEventListener('click', function() {
+      cutawayMode = 'cluster';
+      modeClusterBtn.classList.add('active');
+      modeSingleBtn.classList.remove('active');
+      radiusCtrl.style.display = 'flex';
+      cutawayMeta.textContent = 'Click anywhere on the map to analyze nearby wells by formation.';
+      document.getElementById('mapDiv').classList.add('map-crosshair');
+    });
+    modeSingleBtn.addEventListener('click', function() {
+      cutawayMode = 'single';
+      modeSingleBtn.classList.add('active');
+      modeClusterBtn.classList.remove('active');
+      radiusCtrl.style.display = 'none';
+      if (radiusCircle) { radiusCircle.setMap(null); radiusCircle = null; }
+      cutawayMeta.textContent = 'Click a well marker on the map.';
+      document.getElementById('mapDiv').classList.remove('map-crosshair');
+    });
+
+    // ── Radius slider ──
+    radiusSlider.addEventListener('input', function() {
+      cutawayRadius = parseInt(this.value);
+      radiusVal.textContent = cutawayRadius + ' mi';
+      if (radiusCircle) {
+        radiusCircle.setRadius(cutawayRadius * 1609.34);
+      }
+    });
+
+    // ── Load Google Maps ──
+    var gmScript = document.createElement('script');
+    gmScript.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCuTHwqo6HPjR0oSlCnWBkRslXTZg41VWY&libraries=visualization,marker&loading=async&callback=wiInitMap';
+    gmScript.async = true;
+    gmScript.defer = true;
+    document.head.appendChild(gmScript);
+
+    window.wiInitMap = function() {
+      var mapDiv = document.getElementById('mapDiv');
+      mapDiv.innerHTML = '';
+
+      map = new google.maps.Map(mapDiv, {
+        center: { lat: 31.95, lng: -102.1 },
+        zoom: 8,
+        mapTypeId: 'terrain',
+        styles: [
+          { elementType: 'geometry', stylers: [{ color: '#1a1a1a' }] },
+          { elementType: 'labels.text.fill', stylers: [{ color: '#7a99b8' }] },
+          { elementType: 'labels.text.stroke', stylers: [{ color: '#060d1a' }] },
+          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a2a' }] },
+          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
+          { featureType: 'poi', stylers: [{ visibility: 'off' }] }
+        ]
+      });
+
+      infoWindow = new google.maps.InfoWindow();
+
+      // Map click for cluster cutaway
+      map.addListener('click', function(e) {
+        if (!panelOpen || cutawayMode !== 'cluster') return;
+        var lat = e.latLng.lat();
+        var lng = e.latLng.lng();
+        loadClusterCutaway(lat, lng);
+      });
+
+      // Load map data — handle auth timing
+      var mapDataLoaded = false;
+      function tryLoadMapData() {
+        if (mapDataLoaded) return;
+        var s = wiAuth.getState();
+        if (s.user && s.authorized && !s.loading) {
+          mapDataLoaded = true;
+          loadMapData();
+        }
+      }
+      wiAuth.subscribe(function(s) { tryLoadMapData(); });
+      tryLoadMapData();
+
+      document.getElementById('mapIonSelect').addEventListener('change', function() {
+        selectedIon = this.value;
+        loadHeatmap();
+      });
+
+      document.getElementById('toggleHeatmap').addEventListener('click', function() {
+        if (heatmapLayer) {
+          heatmapLayer.setMap(heatmapLayer.getMap() ? null : map);
+        }
+      });
+
+      var markersVisible = true;
+      document.getElementById('toggleMarkers').addEventListener('click', function() {
+        markersVisible = !markersVisible;
+        markers.forEach(function(m) { m.setVisible(markersVisible); });
+      });
+    };
+
+    // ── Load Wells ──
+    async function loadMapData() {
+      try {
+        var wells = await api('/api/v1/map/wells');
+        var items = wells.items || wells || [];
+
+        items.forEach(function(w) {
+          if (!w.latitude || !w.longitude) return;
+          wellDataMap[w.id] = w;
+
+          var marker = new google.maps.Marker({
+            position: { lat: w.latitude, lng: w.longitude },
+            map: map,
+            title: w.well_name,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 6,
+              fillColor: w.alert_count > 0 ? '#ef4444' : '#00d4ff',
+              fillOpacity: 0.9,
+              strokeColor: '#060d1a',
+              strokeWeight: 2
+            }
+          });
+
+          marker.addListener('click', function() {
+            // Single well cutaway
+            if (panelOpen && cutawayMode === 'single') {
+              loadSingleWellCutaway(w.id);
+              return;
+            }
+            // Normal info window
+            var infoContent = '<div class="map-info-window">' +
+              '<h4>' + c.escapeHtml(w.well_name) + '</h4>' +
+              '<p><strong>Operator:</strong> ' + c.escapeHtml(w.operator_name) + '</p>' +
+              (w.formation ? '<p><strong>Formation:</strong> ' + c.escapeHtml(w.formation) + '</p>' : '') +
+              (w.latest_tds ? '<p><strong>TDS:</strong> ' + c.formatNumber(w.latest_tds) + ' mg/L</p>' : '') +
+              '<p><a class="map-link" href="well-detail.html?id=' + encodeURIComponent(w.id) + '">View Details →</a></p>' +
+              '<p><a class="map-link" href="#" onclick="event.preventDefault();window._openWellCutaway(' + w.id + ')">⛏ Formation Cutaway</a></p>' +
+              '</div>';
+            infoWindow.setContent(infoContent);
+            infoWindow.open(map, marker);
+          });
+
+          markers.push(marker);
+        });
+
+        loadHeatmap();
+      } catch(e) {
+        c.showToast('Error loading map data: ' + e.message, 'error');
+      }
+    }
+
+    // Quick-link from info window to single well cutaway
+    window._openWellCutaway = function(wellId) {
+      infoWindow.close();
+      cutawayMode = 'single';
+      modeSingleBtn.classList.add('active');
+      modeClusterBtn.classList.remove('active');
+      radiusCtrl.style.display = 'none';
+      if (!panelOpen) openPanel();
+      loadSingleWellCutaway(wellId);
+    };
+
+    // ── Heatmap ──
+    async function loadHeatmap() {
+      try {
+        var data = await api('/api/v1/map/heatmap/' + selectedIon);
+        var points = (data.points || data || []).map(function(p) {
+          return {
+            location: new google.maps.LatLng(p.lat, p.lon),
+            weight: p.value || 1
+          };
+        });
+
+        if (heatmapLayer) heatmapLayer.setMap(null);
+        heatmapLayer = new google.maps.visualization.HeatmapLayer({
+          data: points,
+          map: map,
+          radius: 30,
+          opacity: 0.6,
+          gradient: [
+            'rgba(0, 0, 0, 0)',
+            'rgba(0, 212, 255, 0.3)',
+            'rgba(91, 229, 255, 0.5)',
+            'rgba(20, 184, 166, 0.7)',
+            'rgba(239, 68, 68, 0.9)'
+          ]
+        });
+      } catch(e) {
+        console.warn('Heatmap load error:', e.message);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // CLUSTER CUTAWAY — click map → radius → average per formation
+    // ──────────────────────────────────────────────────────────────
+
+    async function loadClusterCutaway(lat, lng) {
+      // Draw radius circle
+      if (radiusCircle) radiusCircle.setMap(null);
+      radiusCircle = new google.maps.Circle({
+        center: { lat: lat, lng: lng },
+        radius: cutawayRadius * 1609.34,
+        map: map,
+        fillColor: '#00d4ff',
+        fillOpacity: 0.06,
+        strokeColor: '#00d4ff',
+        strokeOpacity: 0.4,
+        strokeWeight: 1.5
+      });
+
+      cutawayTitle.textContent = 'Cluster Cross-Section';
+      cutawayMeta.innerHTML = '<strong>Center:</strong> ' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ' &nbsp;|&nbsp; <strong>Radius:</strong> ' + cutawayRadius + ' mi';
+      cutawayBody.innerHTML = '<div class="cutaway-loading"><div class="spinner"></div>Loading formation data...</div>';
+
+      try {
+        var data = await api('/api/v1/map/cutaway?lat=' + lat + '&lng=' + lng + '&radius_miles=' + cutawayRadius);
+        cutawayMeta.innerHTML = '<strong>Center:</strong> ' + lat.toFixed(4) + ', ' + lng.toFixed(4) +
+          ' &nbsp;|&nbsp; <strong>Radius:</strong> ' + cutawayRadius + ' mi' +
+          ' &nbsp;|&nbsp; <strong>Wells:</strong> ' + (data.total_wells_in_radius || 0);
+
+        renderCutawayLayers(data.all_formations || [], data.formations_with_data || [], 'cluster');
+      } catch(e) {
+        cutawayBody.innerHTML = '<div style="padding:20px 16px;color:#ef4444;font-size:0.85rem">Error: ' + c.escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // SINGLE WELL CUTAWAY — click well → show its formation data
+    // ──────────────────────────────────────────────────────────────
+
+    async function loadSingleWellCutaway(wellId) {
+      cutawayTitle.textContent = 'Well Cross-Section';
+      cutawayBody.innerHTML = '<div class="cutaway-loading"><div class="spinner"></div>Loading well data...</div>';
+
+      try {
+        var data = await api('/api/v1/wells/' + wellId + '/cutaway');
+        var w = data.well || {};
+        cutawayMeta.innerHTML = '<strong>' + c.escapeHtml(w.well_name || 'Unknown') + '</strong>' +
+          (w.operator_name ? ' &nbsp;|&nbsp; ' + c.escapeHtml(w.operator_name) : '') +
+          (w.target_formation ? ' &nbsp;|&nbsp; <strong style="color:' + getFormationColor(w.target_formation) + '">' + c.escapeHtml(w.target_formation) + '</strong>' : '');
+
+        // Build single-well formation data array (just the well's formation with its chemistry)
+        var formationsWithData = [];
+        if (w.target_formation && data.latest_chemistry) {
+          formationsWithData.push({
+            formation: w.target_formation,
+            depth_range: data.well_formation ? data.well_formation.typical_depth_range_ft : null,
+            geological_age: data.well_formation ? data.well_formation.geological_age : null,
+            well_count: 1,
+            sample_count: 1,
+            avg_tds: data.latest_chemistry.tds,
+            avg_chloride: data.latest_chemistry.chloride,
+            avg_calcium: data.latest_chemistry.calcium,
+            avg_magnesium: data.latest_chemistry.magnesium,
+            avg_sodium: data.latest_chemistry.sodium,
+            avg_barium: data.latest_chemistry.barium,
+            avg_strontium: data.latest_chemistry.strontium,
+            avg_iron: data.latest_chemistry.iron,
+            avg_manganese: data.latest_chemistry.manganese,
+            avg_sulfate: data.latest_chemistry.sulfate,
+            avg_bicarbonate: data.latest_chemistry.bicarbonate,
+            avg_dissolved_h2s: data.latest_chemistry.dissolved_h2s,
+            avg_ph: data.latest_chemistry.sample_ph,
+            avg_specific_gravity: data.latest_chemistry.specific_gravity,
+            avg_potassium: data.latest_chemistry.potassium,
+            avg_lithium: data.latest_chemistry.lithium,
+            avg_bromide: data.latest_chemistry.bromide,
+          });
+        }
+
+        renderCutawayLayers(data.all_formations || [], formationsWithData, 'single');
+      } catch(e) {
+        cutawayBody.innerHTML = '<div style="padding:20px 16px;color:#ef4444;font-size:0.85rem">Error: ' + c.escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // RENDER FORMATION LAYERS — geological cross-section
+    // ──────────────────────────────────────────────────────────────
+
+    function renderCutawayLayers(allFormations, formationsWithData, mode) {
+      // Build lookup for formations with chemistry data
+      var dataMap = {};
+      (formationsWithData || []).forEach(function(f) {
+        dataMap[f.formation] = f;
+      });
+
+      var bodyHtml = '';
+
+      allFormations.forEach(function(fm) {
+        var fname = fm.formation_name;
+        var depth = fm.typical_depth_range_ft || '?';
+        var age = fm.geological_age || '';
+        var hasData = !!dataMap[fname];
+        var d = hasData ? dataMap[fname] : null;
+        var color = getFormationColor(fname);
+
+        // Parse depth for display
+        var depthParts = depth.split('-');
+        var topFt = depthParts[0] ? depthParts[0].trim() : '?';
+        var botFt = depthParts[1] ? depthParts[1].trim() : '?';
+
+        bodyHtml += '<div class="formation-layer' + (hasData ? ' has-data' : '') + '" data-formation="' + c.escapeHtml(fname) + '">';
+
+        // Depth column
+        bodyHtml += '<div class="fl-depth"><span>' + topFt + '\'</span><span style="color:rgba(255,255,255,0.2)">to</span><span>' + botFt + '\'</span></div>';
+
+        // Bar
+        bodyHtml += '<div class="fl-bar">';
+        bodyHtml += '<div class="fl-color-swatch" style="background:' + color + '"></div>';
+        bodyHtml += '<div class="fl-info">';
+        bodyHtml += '<div class="fl-name">' + c.escapeHtml(fname) + '</div>';
+        if (age) bodyHtml += '<div class="fl-age">' + c.escapeHtml(age) + '</div>';
+        bodyHtml += '</div>';
+
+        // Stats badges
+        bodyHtml += '<div class="fl-stats">';
+        if (hasData) {
+          bodyHtml += '<div class="fl-stat">' + formatIonVal(d.avg_tds) + ' TDS</div>';
+          if (mode === 'cluster') {
+            bodyHtml += '<div class="fl-stat">' + (d.well_count || 0) + ' well' + (d.well_count !== 1 ? 's' : '') + '</div>';
+          }
+        } else {
+          bodyHtml += '<div class="fl-stat no-data">No data</div>';
+        }
+        bodyHtml += '</div>';
+
+        bodyHtml += '</div>'; // .fl-bar
+        bodyHtml += '</div>'; // .formation-layer
+
+        // Expandable detail
+        if (hasData) {
+          bodyHtml += '<div class="fl-detail" data-detail="' + c.escapeHtml(fname) + '">';
+          bodyHtml += '<div class="fl-detail-grid">';
+          var ions = [
+            ['TDS', d.avg_tds, 'mg/L'],
+            ['Chloride', d.avg_chloride, 'mg/L'],
+            ['Calcium', d.avg_calcium, 'mg/L'],
+            ['Sodium', d.avg_sodium, 'mg/L'],
+            ['Magnesium', d.avg_magnesium, 'mg/L'],
+            ['Barium', d.avg_barium, 'mg/L'],
+            ['Strontium', d.avg_strontium, 'mg/L'],
+            ['Iron', d.avg_iron, 'mg/L'],
+            ['Manganese', d.avg_manganese, 'mg/L'],
+            ['Sulfate', d.avg_sulfate, 'mg/L'],
+            ['Bicarbonate', d.avg_bicarbonate, 'mg/L'],
+            ['Dissolved H2S', d.avg_dissolved_h2s, 'mg/L'],
+            ['pH', d.avg_ph, ''],
+            ['Sp. Gravity', d.avg_specific_gravity, ''],
+            ['Potassium', d.avg_potassium, 'mg/L'],
+            ['Lithium', d.avg_lithium, 'mg/L'],
+            ['Bromide', d.avg_bromide, 'mg/L'],
+          ];
+          ions.forEach(function(arr) {
+            bodyHtml += '<div class="fl-ion-item">';
+            bodyHtml += '<div class="fl-ion-label">' + arr[0] + '</div>';
+            bodyHtml += '<div class="fl-ion-value">' + formatIonVal(arr[1]) + (arr[2] ? ' <span style="font-size:0.6rem;color:var(--white-dim)">' + arr[2] + '</span>' : '') + '</div>';
+            bodyHtml += '</div>';
+          });
+          if (mode === 'cluster') {
+            bodyHtml += '<div class="fl-ion-item">';
+            bodyHtml += '<div class="fl-ion-label">Wells</div>';
+            bodyHtml += '<div class="fl-ion-value">' + (d.well_count || 0) + '</div>';
+            bodyHtml += '</div>';
+            bodyHtml += '<div class="fl-ion-item">';
+            bodyHtml += '<div class="fl-ion-label">Samples</div>';
+            bodyHtml += '<div class="fl-ion-value">' + (d.sample_count || 0) + '</div>';
+            bodyHtml += '</div>';
+          }
+          bodyHtml += '</div>'; // .fl-detail-grid
+          bodyHtml += '</div>'; // .fl-detail
+        }
+      });
+
+      if (!allFormations.length) {
+        bodyHtml = '<div style="padding:20px 16px;color:var(--white-dim);font-size:0.85rem">No formation data available.</div>';
+      }
+
+      cutawayBody.innerHTML = bodyHtml;
+
+      // Toggle detail on click
+      cutawayBody.querySelectorAll('.formation-layer.has-data').forEach(function(el) {
+        el.addEventListener('click', function() {
+          var fname = this.getAttribute('data-formation');
+          var detail = cutawayBody.querySelector('.fl-detail[data-detail="' + fname + '"]');
+          if (detail) {
+            var isOpen = detail.classList.contains('open');
+            // Close all
+            cutawayBody.querySelectorAll('.fl-detail.open').forEach(function(d) { d.classList.remove('open'); });
+            cutawayBody.querySelectorAll('.formation-layer.active').forEach(function(d) { d.classList.remove('active'); });
+            if (!isOpen) {
+              detail.classList.add('open');
+              this.classList.add('active');
+            }
+          }
+        });
+      });
+    }
+
+    function formatIonVal(v) {
+      if (v === null || v === undefined) return '—';
+      var n = parseFloat(v);
+      if (isNaN(n)) return '—';
+      if (n >= 1000) return c.formatNumber(Math.round(n));
+      if (n >= 10) return n.toFixed(1);
+      if (n >= 1) return n.toFixed(2);
+      return n.toFixed(3);
+    }
+
+  })();
+  </script>
+</body>
+</html>

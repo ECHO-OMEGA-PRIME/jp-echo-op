@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Aqua Pulse</title>
+  <meta name="description" content="Aqua Pulse Dashboard — Permian Basin water chemistry overview, alerts, and well monitoring.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/dashboard.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'dashboard',
+      title: 'Dashboard',
+      subtitle: 'Permian Basin Water Intelligence Overview'
+    });
+
+    // Add upload button to topbar
+    var topRight = document.getElementById('wiTopbarRight');
+    var uploadBtn = document.createElement('a');
+    uploadBtn.href = 'upload.html';
+    uploadBtn.className = 'btn-primary btn-sm';
+    uploadBtn.textContent = 'Upload PDF';
+    topRight.insertBefore(uploadBtn, topRight.firstChild);
+
+    // Show loading skeleton
+    content.innerHTML =
+      '<div class="stat-grid">' + c.skeletonRows(4, 120).replace(/margin-bottom:8px/g, '') + '</div>' +
+      '<div class="glass-card" style="padding:24px;margin-bottom:32px">' + c.skeletonRows(5, 40) + '</div>';
+
+    // Load data
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) loadDashboard();
+    });
+
+    async function loadDashboard() {
+      try {
+        var [wellsRes, alertsRes] = await Promise.all([
+          api('/api/v1/wells?per_page=1').catch(function() { return { items: [], total: 0 }; }),
+          api('/api/v1/alerts?per_page=50').catch(function() { return { items: [], total: 0 }; })
+        ]);
+
+        var totalWells = wellsRes.total || 0;
+        var alerts = alertsRes.items || [];
+        var activeAlerts = alerts.filter(function(a) { return !a.acknowledged; }).length;
+        var criticalAlerts = alerts.filter(function(a) { return a.severity === 'CRITICAL' && !a.acknowledged; }).length;
+
+        renderDashboard(totalWells, activeAlerts, criticalAlerts, alerts);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading dashboard: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderDashboard(totalWells, activeAlerts, criticalAlerts, alerts) {
+      var html = '';
+
+      // Stat cards
+      html += '<div class="stat-grid">';
+      html += statCard('Total Wells', totalWells, c.ICONS.droplet, 'var(--cyan)');
+      html += statCard('Active Alerts', activeAlerts, c.ICONS.alerts, 'var(--orange)');
+      html += statCard('Critical', criticalAlerts, c.ICONS.shield, '#ef4444');
+      html += statCard('Analysis Score', '98%', c.ICONS.barChart, '#22c55e');
+      html += '</div>';
+
+      // Active Alerts Table
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:32px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+      html += '<span class="section-label">Active Alerts</span>';
+      html += '<a href="alerts.html" style="font-family:var(--font-heading);font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px">View All →</a>';
+      html += '</div>';
+
+      if (alerts.length === 0) {
+        html += '<div class="empty-state">' + c.ICONS.activity + '<p>No active alerts</p></div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Severity</th><th>Well</th><th>Rule</th><th>Message</th><th>Date</th>';
+        html += '</tr></thead><tbody>';
+        alerts.slice(0, 10).forEach(function(a) {
+          html += '<tr onclick="window.location.href=\'alerts.html\'">';
+          html += '<td>' + c.severityBadge(a.severity) + '</td>';
+          html += '<td style="color:var(--cyan)">' + c.escapeHtml(a.well_name || (a.well_id || '').slice(0, 8)) + '</td>';
+          html += '<td>' + c.escapeHtml(a.alert_type) + '</td>';
+          html += '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.escapeHtml(a.description) + '</td>';
+          html += '<td style="color:var(--white-dim)">' + c.formatDate(a.created_at) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      // Quick Links
+      html += '<div class="quick-links">';
+      html += quickLink('wells.html', c.ICONS.droplet, 'Wells Database', 'Browse and manage all registered wells');
+      html += quickLink('map.html', c.ICONS.map, 'Formation Map', 'Interactive geospatial water chemistry map');
+      html += quickLink('upload.html', c.ICONS.upload, 'Upload Analysis', 'Upload PDF lab reports for processing');
+      html += '</div>';
+
+      content.innerHTML = html;
+    }
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div>' +
+        '<div class="stat-card-label">' + label + '</div>' +
+        '<div class="stat-card-value">' + value + '</div>' +
+        '</div>';
+    }
+
+    function quickLink(href, icon, title, desc) {
+      return '<a href="' + href + '" class="quick-link-card">' +
+        icon + '<h3>' + title + '</h3><p>' + desc + '</p></a>';
+    }
+  })();
+  </script>
+</body>
+</html>

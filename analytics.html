@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics — Aqua Pulse</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'analytics',
+      title: 'Analytics & P&L',
+      subtitle: 'Profit & Loss, revenue breakdown, cash flow analysis'
+    });
+
+    content.innerHTML = '<div class="stat-grid">' + c.skeletonRows(4, 120) + '</div>' +
+      '<div class="glass-card" style="padding:24px">' + c.skeletonRows(8, 32) + '</div>';
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && s.authorized && !s.loading) loadAnalytics();
+    });
+
+    var currentYear = new Date().getFullYear().toString();
+
+    async function loadAnalytics() {
+      try {
+        var [pnl, byService, byCustomer, byCat, cashFlow] = await Promise.all([
+          api('/api/v1/analytics/pnl?year=' + currentYear).catch(function() { return { summary: {}, revenue_by_period: [], expenses_by_period: [] }; }),
+          api('/api/v1/analytics/revenue-by-service').catch(function() { return { items: [] }; }),
+          api('/api/v1/analytics/revenue-by-customer').catch(function() { return { items: [] }; }),
+          api('/api/v1/analytics/expense-by-category').catch(function() { return { items: [] }; }),
+          api('/api/v1/analytics/cash-flow?months=12').catch(function() { return { inflow: [], outflow: [] }; })
+        ]);
+        renderAnalytics(pnl, byService.items || [], byCustomer.items || [], byCat.items || [], cashFlow);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading analytics: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderAnalytics(pnl, byService, byCustomer, byCat, cashFlow) {
+      var s = pnl.summary || {};
+      var html = '';
+
+      // Year selector
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      html += '<span class="section-label">Financial Year ' + currentYear + '</span>';
+      html += '<div style="display:flex;gap:8px">';
+      for (var y = new Date().getFullYear(); y >= new Date().getFullYear() - 2; y--) {
+        var active = y.toString() === currentYear ? 'btn-primary' : 'btn-outline';
+        html += '<button class="' + active + ' btn-sm year-btn" data-year="' + y + '">' + y + '</button>';
+      }
+      html += '</div></div>';
+
+      // Summary cards
+      html += '<div class="stat-grid">';
+      html += statCard('Revenue', '$' + formatMoney(s.total_revenue_cents / 100), ICONS.trendUp, '#22c55e');
+      html += statCard('Expenses', '$' + formatMoney(s.total_expenses_cents / 100), ICONS.trendDown, '#ef4444');
+      html += statCard('Net Income', '$' + formatMoney(s.net_income_cents / 100), ICONS.dollar, s.net_income_cents >= 0 ? '#22c55e' : '#ef4444');
+      html += statCard('Profit Margin', (s.profit_margin_pct || 0).toFixed(1) + '%', ICONS.percent, 'var(--cyan)');
+      html += '</div>';
+
+      // P&L Statement
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<h3 style="font-family:var(--font-heading);color:var(--cyan);margin:0 0 20px">Profit & Loss Statement</h3>';
+
+      html += '<div style="overflow-x:auto"><table class="data-table">';
+      html += '<thead><tr><th style="text-align:left">Category</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Revenue</th></tr></thead>';
+      html += '<tbody>';
+
+      // Revenue section
+      html += '<tr style="background:rgba(34,197,94,0.08)"><td style="font-weight:700;color:#22c55e" colspan="3">REVENUE</td></tr>';
+      if (byService.length > 0) {
+        byService.forEach(function(s) {
+          var pct = (pnl.summary.total_revenue_cents > 0) ? (s.total_cents / pnl.summary.total_revenue_cents * 100).toFixed(1) : '0.0';
+          html += '<tr><td style="padding-left:24px">' + c.escapeHtml(formatServiceType(s.service_type)) + ' <span style="color:var(--white-dim)">(' + s.count + ')</span></td>';
+          html += '<td style="text-align:right;color:#22c55e">$' + formatMoney(s.total_cents / 100) + '</td>';
+          html += '<td style="text-align:right;color:var(--white-dim)">' + pct + '%</td></tr>';
+        });
+      }
+      html += '<tr style="border-top:2px solid var(--cyan)"><td style="font-weight:700;color:var(--cyan)">Total Revenue</td>';
+      html += '<td style="text-align:right;font-weight:700;color:#22c55e">$' + formatMoney((s.total_revenue_cents || 0) / 100) + '</td>';
+      html += '<td style="text-align:right;color:var(--white-dim)">100%</td></tr>';
+
+      // Expenses section
+      html += '<tr style="background:rgba(239,68,68,0.08)"><td style="font-weight:700;color:#ef4444" colspan="3">EXPENSES</td></tr>';
+      if (byCat.length > 0) {
+        byCat.forEach(function(ex) {
+          var pct = (pnl.summary.total_revenue_cents > 0) ? (ex.total_cents / pnl.summary.total_revenue_cents * 100).toFixed(1) : '0.0';
+          html += '<tr><td style="padding-left:24px">' + c.escapeHtml(formatCategory(ex.category)) + ' <span style="color:var(--white-dim)">(' + ex.count + ')</span></td>';
+          html += '<td style="text-align:right;color:#ef4444">$' + formatMoney(ex.total_cents / 100) + '</td>';
+          html += '<td style="text-align:right;color:var(--white-dim)">' + pct + '%</td></tr>';
+        });
+      } else {
+        html += '<tr><td style="padding-left:24px;color:var(--white-dim)">No expenses recorded</td><td></td><td></td></tr>';
+      }
+      html += '<tr style="border-top:2px solid var(--cyan)"><td style="font-weight:700;color:var(--cyan)">Total Expenses</td>';
+      html += '<td style="text-align:right;font-weight:700;color:#ef4444">$' + formatMoney((s.total_expenses_cents || 0) / 100) + '</td>';
+      html += '<td style="text-align:right;color:var(--white-dim)">' + ((s.total_revenue_cents > 0) ? ((s.total_expenses_cents || 0) / s.total_revenue_cents * 100).toFixed(1) : '0.0') + '%</td></tr>';
+
+      // Net Income
+      var netColor = (s.net_income_cents || 0) >= 0 ? '#22c55e' : '#ef4444';
+      html += '<tr style="border-top:3px double var(--cyan);background:rgba(0,212,255,0.08)"><td style="font-weight:700;font-size:1.1rem;color:var(--cyan)">NET INCOME</td>';
+      html += '<td style="text-align:right;font-weight:700;font-size:1.1rem;color:' + netColor + '">$' + formatMoney((s.net_income_cents || 0) / 100) + '</td>';
+      html += '<td style="text-align:right;font-weight:700;color:' + netColor + '">' + (s.profit_margin_pct || 0).toFixed(1) + '%</td></tr>';
+
+      html += '</tbody></table></div>';
+      html += '</div>';
+
+      // Revenue by Customer
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">';
+
+      // Left: Revenue by customer
+      html += '<div class="glass-card" style="padding:24px">';
+      html += '<h3 style="font-family:var(--font-heading);color:var(--cyan);margin:0 0 16px;font-size:0.95rem">Revenue by Customer</h3>';
+      if (byCustomer.length > 0) {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Customer</th><th style="text-align:right">Paid</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>';
+        byCustomer.forEach(function(cu) {
+          html += '<tr><td style="color:var(--cyan)">' + c.escapeHtml(cu.customer_name) + ' <span style="color:var(--white-dim)">(' + cu.invoice_count + ')</span></td>';
+          html += '<td style="text-align:right;color:#22c55e">$' + formatMoney(cu.paid_total / 100) + '</td>';
+          html += '<td style="text-align:right;color:' + (cu.outstanding_total > 0 ? '#f59e0b' : 'var(--white-dim)') + '">$' + formatMoney(cu.outstanding_total / 100) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p style="color:var(--white-dim);text-align:center">No data yet</p>';
+      }
+      html += '</div>';
+
+      // Right: Monthly revenue trend
+      html += '<div class="glass-card" style="padding:24px">';
+      html += '<h3 style="font-family:var(--font-heading);color:var(--cyan);margin:0 0 16px;font-size:0.95rem">Monthly Revenue</h3>';
+      var revPeriods = pnl.revenue_by_period || [];
+      if (revPeriods.length > 0) {
+        var maxRev = Math.max.apply(null, revPeriods.map(function(r) { return r.total_revenue || 0; }));
+        revPeriods.forEach(function(r) {
+          var pct = maxRev > 0 ? (r.total_revenue / maxRev * 100) : 0;
+          html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">';
+          html += '<span style="font-size:0.8rem;color:var(--white-dim);width:70px;flex-shrink:0">' + r.period + '</span>';
+          html += '<div style="flex:1;height:20px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden">';
+          html += '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#22c55e,var(--cyan));border-radius:4px"></div>';
+          html += '</div>';
+          html += '<span style="font-size:0.8rem;color:var(--cyan);width:80px;text-align:right">$' + formatMoney(r.total_revenue / 100) + '</span>';
+          html += '</div>';
+        });
+      } else {
+        html += '<p style="color:var(--white-dim);text-align:center">No revenue recorded for ' + currentYear + '</p>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+
+      // Cash Flow
+      html += '<div class="glass-card" style="padding:24px">';
+      html += '<h3 style="font-family:var(--font-heading);color:var(--cyan);margin:0 0 16px;font-size:0.95rem">Cash Flow (Last 12 Months)</h3>';
+      var inflow = cashFlow.inflow || [];
+      var outflow = cashFlow.outflow || [];
+      if (inflow.length > 0 || outflow.length > 0) {
+        var allMonths = {};
+        inflow.forEach(function(r) { allMonths[r.month] = allMonths[r.month] || {}; allMonths[r.month].inflow = r.amount; });
+        outflow.forEach(function(r) { allMonths[r.month] = allMonths[r.month] || {}; allMonths[r.month].outflow = r.amount; });
+        var sortedMonths = Object.keys(allMonths).sort();
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Month</th><th style="text-align:right;color:#22c55e">Inflow</th><th style="text-align:right;color:#ef4444">Outflow</th><th style="text-align:right;color:var(--cyan)">Net</th></tr></thead><tbody>';
+        sortedMonths.forEach(function(m) {
+          var inf = allMonths[m].inflow || 0;
+          var out = allMonths[m].outflow || 0;
+          var net = inf - out;
+          html += '<tr><td>' + m + '</td>';
+          html += '<td style="text-align:right;color:#22c55e">$' + formatMoney(inf / 100) + '</td>';
+          html += '<td style="text-align:right;color:#ef4444">$' + formatMoney(out / 100) + '</td>';
+          html += '<td style="text-align:right;color:' + (net >= 0 ? '#22c55e' : '#ef4444') + '">$' + formatMoney(net / 100) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p style="color:var(--white-dim);text-align:center">No cash flow data yet</p>';
+      }
+      html += '</div>';
+
+      // QB Integration
+      html += '<div class="glass-card" style="padding:16px;margin-top:24px;display:flex;align-items:center;gap:12px">';
+      html += '<div style="width:40px;height:40px;border-radius:8px;background:#2CA01C20;display:flex;align-items:center;justify-content:center">';
+      html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2CA01C" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+      html += '</div>';
+      html += '<div>';
+      html += '<div style="font-family:var(--font-heading);font-size:0.85rem;color:var(--cyan)">QuickBooks Reports</div>';
+      html += '<div style="font-size:0.8rem;color:var(--white-dim)">P&L and cash flow reports sync with QuickBooks once connected</div>';
+      html += '</div>';
+      html += '</div>';
+
+      content.innerHTML = html;
+
+      // Wire year buttons
+      document.querySelectorAll('.year-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          currentYear = this.getAttribute('data-year');
+          content.innerHTML = '<div class="stat-grid">' + c.skeletonRows(4, 120) + '</div>' +
+            '<div class="glass-card" style="padding:24px">' + c.skeletonRows(8, 32) + '</div>';
+          loadAnalytics();
+        });
+      });
+    }
+
+    // Helpers
+    var ICONS = {
+      trendUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+      trendDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>',
+      dollar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+      percent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>'
+    };
+
+    function formatMoney(n) {
+      return (n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div>' +
+        '<div class="stat-card-label">' + label + '</div>' +
+        '<div class="stat-card-value">' + value + '</div>' +
+        '</div>';
+    }
+
+    function formatServiceType(st) {
+      if (!st) return 'Other';
+      return st.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+    }
+
+    function formatCategory(cat) {
+      if (!cat) return 'Other';
+      return cat.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+    }
+  })();
+  </script>
+</body>
+</html>

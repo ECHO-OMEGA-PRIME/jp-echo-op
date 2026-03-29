@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aqua Pulse — Water Intelligence for the Permian Basin</title>
+  <meta name="description" content="Aqua Pulse detects scaling, corrosion, and bacteria threats in produced water before they damage your casing string. Real-time water chemistry analysis for Permian Basin operators.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       AQUA PULSE — SOVEREIGN HOMEPAGE
+       Deep ocean navy + cyan accents + particle field + animated hero
+       ================================================================ */
+    :root {
+      --deep: #060d1a;
+      --deep-alt: #040a14;
+      --surface: #0c1829;
+      --surface-raised: #122240;
+      --surface-glass: rgba(12, 24, 41, 0.6);
+      --cyan: #00d4ff;
+      --cyan-light: #5be5ff;
+      --cyan-pale: #a8edff;
+      --cyan-dark: #0099cc;
+      --cyan-glow: rgba(0, 212, 255, 0.15);
+      --cyan-glow-strong: rgba(0, 212, 255, 0.35);
+      --cyan-glow-intense: rgba(0, 212, 255, 0.5);
+      --teal: #14b8a6;
+      --teal-glow: rgba(20, 184, 166, 0.2);
+      --indigo: #6366f1;
+      --indigo-glow: rgba(99, 102, 241, 0.15);
+      --white: #e2edf6;
+      --white-dim: #7a99b8;
+      --white-muted: #4a6580;
+      --border: rgba(0, 212, 255, 0.08);
+      --border-hover: rgba(0, 212, 255, 0.25);
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--deep);
+      color: var(--white);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    ::selection { background: rgba(0, 212, 255, 0.25); color: #fff; }
+
+    /* ── Canvas Particle Background ── */
+    #particleCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Navigation ── */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(6, 13, 26, 0.7);
+      backdrop-filter: blur(20px) saturate(1.3);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.4s var(--ease-out);
+    }
+    .nav.scrolled {
+      padding: 10px 40px;
+      background: rgba(6, 13, 26, 0.92);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+    .nav-brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+      animation: icon-glow 3s ease-in-out infinite;
+    }
+    @keyframes icon-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+      50% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.5); }
+    }
+    .nav-brand-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--deep);
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-link {
+      padding: 8px 20px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--white-dim);
+      border-radius: 8px;
+      transition: all 0.25s var(--ease-out);
+      position: relative;
+    }
+    .nav-link:hover { color: var(--white); background: var(--cyan-glow); }
+    .nav-cta {
+      padding: 10px 26px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--deep);
+      background: linear-gradient(135deg, var(--cyan-dark), var(--cyan));
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.35s var(--ease-out);
+      box-shadow: 0 2px 12px rgba(0, 212, 255, 0.25);
+    }
+    .nav-cta:hover {
+      background: linear-gradient(135deg, var(--cyan), var(--cyan-light));
+      box-shadow: 0 4px 28px var(--cyan-glow-strong);
+      transform: translateY(-2px);
+      color: var(--deep);
+    }
+
+    /* ── Hero Section ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 24px 60px;
+      overflow: hidden;
+      z-index: 1;
+      gap: 0;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 35%, rgba(0, 212, 255, 0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 25% 80%, rgba(20, 184, 166, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 80% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 60%);
+    }
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 212, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.025) 1px, transparent 1px);
+      background-size: 80px 80px;
+      mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(0,0,0,0.6), transparent);
+      animation: grid-shift 20s linear infinite;
+    }
+    @keyframes grid-shift {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(80px, 80px); }
+    }
+
+    /* Animated water molecule visualization */
+    .hero-molecule {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    .molecule-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      animation: ring-expand 6s ease-out infinite;
+    }
+    .molecule-ring:nth-child(1) { width: 400px; height: 400px; top: calc(50% - 200px); left: calc(50% - 200px); animation-delay: 0s; }
+    .molecule-ring:nth-child(2) { width: 600px; height: 600px; top: calc(50% - 300px); left: calc(50% - 300px); animation-delay: 2s; }
+    .molecule-ring:nth-child(3) { width: 800px; height: 800px; top: calc(50% - 400px); left: calc(50% - 400px); animation-delay: 4s; }
+    @keyframes ring-expand {
+      0% { transform: scale(0.6); opacity: 0.5; border-color: rgba(0, 212, 255, 0.15); }
+      100% { transform: scale(1.4); opacity: 0; border-color: rgba(0, 212, 255, 0); }
+    }
+
+    /* Floating orbs with improved animation */
+    .hero-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      will-change: transform;
+    }
+    .hero-orb-1 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+      top: 10%; left: 5%;
+      animation: orb-float-1 12s ease-in-out infinite;
+    }
+    .hero-orb-2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(20, 184, 166, 0.08) 0%, transparent 70%);
+      bottom: 15%; right: 10%;
+      animation: orb-float-2 15s ease-in-out infinite;
+    }
+    .hero-orb-3 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+      top: 55%; left: 60%;
+      animation: orb-float-3 10s ease-in-out infinite;
+    }
+    .hero-orb-4 {
+      width: 250px; height: 250px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.05) 0%, transparent 70%);
+      top: 25%; right: 25%;
+      animation: orb-float-1 18s ease-in-out infinite reverse;
+    }
+    @keyframes orb-float-1 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(30px, -25px) scale(1.05); }
+      50% { transform: translate(-15px, 20px) scale(0.95); }
+      75% { transform: translate(20px, 10px) scale(1.02); }
+    }
+    @keyframes orb-float-2 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(-25px, -20px) scale(1.08); }
+      66% { transform: translate(15px, 15px) scale(0.92); }
+    }
+    @keyframes orb-float-3 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(25px, -30px); }
+    }
+
+    /* ── Hero Graphic (animated water analysis SVG scene) ── */
+    .hero-graphic {
+      position: relative;
+      z-index: 3;
+      width: 680px;
+      height: 680px;
+      max-width: 92vw;
+      margin-bottom: 24px;
+      opacity: 0;
+      transform: scale(0.85);
+      animation: graphic-entrance 1.2s var(--ease-out) 0.1s forwards;
+    }
+    @keyframes graphic-entrance {
+      to { opacity: 1; transform: scale(1); }
+    }
+    .hero-graphic svg { width: 100%; height: 100%; overflow: visible; }
+
+    /* SVG animation classes */
+    .hg-center-molecule { transform-origin: 260px 230px; animation: mol-pulse 4s ease-in-out infinite; }
+    @keyframes mol-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+    .hg-orbit-ring { transform-origin: 260px 230px; fill: none; stroke-dasharray: 8 6; }
+    .hg-orbit-1 { animation: orbit-spin 20s linear infinite; }
+    .hg-orbit-2 { animation: orbit-spin 28s linear infinite reverse; }
+    .hg-orbit-3 { animation: orbit-spin 35s linear infinite; }
+    @keyframes orbit-spin { to { transform: rotate(360deg); } }
+
+    .hg-ion { animation: ion-glow 2.5s ease-in-out infinite; }
+    .hg-ion:nth-child(2) { animation-delay: 0.8s; }
+    .hg-ion:nth-child(3) { animation-delay: 1.6s; }
+    @keyframes ion-glow {
+      0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 4px rgba(0,212,255,0.4)); }
+      50% { opacity: 1; filter: drop-shadow(0 0 12px rgba(0,212,255,0.8)); }
+    }
+
+    .hg-scan-beam { animation: scan-sweep 3.5s ease-in-out infinite; transform-origin: 260px 230px; }
+    @keyframes scan-sweep {
+      0% { transform: rotate(-25deg); opacity: 0.6; }
+      50% { transform: rotate(25deg); opacity: 1; }
+      100% { transform: rotate(-25deg); opacity: 0.6; }
+    }
+
+    .hg-data-particle { animation: data-rise 3s ease-out infinite; }
+    .hg-data-particle:nth-child(2) { animation-delay: 0.5s; }
+    .hg-data-particle:nth-child(3) { animation-delay: 1s; }
+    .hg-data-particle:nth-child(4) { animation-delay: 1.5s; }
+    .hg-data-particle:nth-child(5) { animation-delay: 2s; }
+    .hg-data-particle:nth-child(6) { animation-delay: 2.5s; }
+    @keyframes data-rise {
+      0% { opacity: 0; transform: translateY(0); }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-60px); }
+    }
+
+    .hg-beaker { opacity: 0.15; }
+    .hg-beaker-liquid { animation: liquid-wave 4s ease-in-out infinite; }
+    @keyframes liquid-wave {
+      0%, 100% { d: path("M170 350 Q215 340 260 348 Q305 356 350 350 L350 420 L170 420 Z"); }
+      50% { d: path("M170 348 Q215 358 260 345 Q305 340 350 352 L350 420 L170 420 Z"); }
+    }
+
+    .hg-readout { animation: readout-blink 1.5s step-end infinite; }
+    @keyframes readout-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hg-wave-line { stroke-dasharray: 200; stroke-dashoffset: 200; animation: wave-draw 2s ease-out forwards; }
+    .hg-wave-line:nth-child(2) { animation-delay: 0.4s; }
+    .hg-wave-line:nth-child(3) { animation-delay: 0.8s; }
+    @keyframes wave-draw { to { stroke-dashoffset: 0; } }
+
+    .hg-shield-pulse { transform-origin: 430px 100px; animation: shield-breathe 3s ease-in-out infinite; }
+    @keyframes shield-breathe {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* Hero content BELOW the graphic */
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 860px;
+    }
+    .hero-content > * {
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fade-up 0.8s var(--ease-out) forwards;
+    }
+    .hero-content > *:nth-child(1) { animation-delay: 0.6s; }
+    .hero-content > *:nth-child(2) { animation-delay: 0.8s; }
+    .hero-content > *:nth-child(3) { animation-delay: 1.0s; }
+    .hero-content > *:nth-child(4) { animation-delay: 1.2s; }
+    @keyframes fade-up {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 22px;
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(20, 184, 166, 0.08));
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--cyan);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+      backdrop-filter: blur(10px);
+    }
+    .hero-badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px var(--cyan); }
+      50% { opacity: 0.6; transform: scale(0.7); box-shadow: 0 0 16px var(--cyan); }
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 7vw, 5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 28px;
+    }
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--cyan), var(--cyan-light), var(--teal), var(--cyan));
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient-shift 6s ease-in-out infinite;
+    }
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .hero h1 .line-accent {
+      position: relative;
+      display: inline-block;
+    }
+    .hero h1 .line-accent::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, var(--cyan), transparent);
+      border-radius: 2px;
+      animation: accent-width 2s var(--ease-out) 1s both;
+    }
+    @keyframes accent-width {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+
+    .hero-sub {
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      color: var(--white-dim);
+      max-width: 620px;
+      margin: 0 auto 44px;
+      line-height: 1.75;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .hero-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 36px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.4s var(--ease-out);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-btn-primary {
+      background: linear-gradient(135deg, var(--cyan-dark), var(--cyan));
+      color: var(--deep);
+      box-shadow: 0 4px 20px rgba(0, 212, 255, 0.25);
+    }
+    .hero-btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent, rgba(255,255,255,0.15), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.6s;
+    }
+    .hero-btn-primary:hover::before { transform: translateX(100%); }
+    .hero-btn-primary:hover {
+      box-shadow: 0 8px 40px var(--cyan-glow-strong);
+      transform: translateY(-3px);
+    }
+    .hero-btn-secondary {
+      background: rgba(0, 212, 255, 0.06);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      backdrop-filter: blur(8px);
+    }
+    .hero-btn-secondary:hover {
+      background: rgba(0, 212, 255, 0.12);
+      border-color: var(--cyan);
+      transform: translateY(-3px);
+      box-shadow: 0 4px 24px rgba(0, 212, 255, 0.15);
+    }
+    .hero-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* ── Animated Stats Bar ── */
+    .stats-bar {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-item {
+      background: var(--surface);
+      padding: 44px 24px;
+      text-align: center;
+      transition: all 0.4s var(--ease-out);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 0%, var(--cyan-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .stat-item:hover { background: var(--surface-raised); }
+    .stat-item:hover::before { opacity: 1; }
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--cyan), var(--cyan-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+    .stat-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--white-dim);
+      letter-spacing: 0.4px;
+    }
+
+    /* ── Features Section ── */
+    .features {
+      position: relative;
+      z-index: 2;
+      padding: 120px 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .features-header {
+      text-align: center;
+      margin-bottom: 72px;
+    }
+    .features-header .eyebrow {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: var(--cyan);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .features-header .eyebrow::before,
+    .features-header .eyebrow::after {
+      content: '';
+      width: 40px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan));
+    }
+    .features-header .eyebrow::after {
+      background: linear-gradient(90deg, var(--cyan), transparent);
+    }
+    .features-header h2 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 3.2rem);
+      font-weight: 800;
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+    }
+    .features-header p {
+      font-size: 1.1rem;
+      color: var(--white-dim);
+      max-width: 580px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      padding: 36px;
+      background: var(--surface-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      transition: all 0.45s var(--ease-out);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+    .feature-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-6px);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.35), 0 0 40px var(--cyan-glow);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-card:hover::after { opacity: 0.3; }
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, var(--cyan-glow), rgba(20, 184, 166, 0.1));
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      transition: all 0.4s;
+    }
+    .feature-card:hover .feature-icon {
+      box-shadow: 0 0 20px var(--cyan-glow);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+    .feature-icon svg {
+      width: 26px;
+      height: 26px;
+      stroke: var(--cyan);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .feature-card h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .feature-card p {
+      font-size: 0.92rem;
+      color: var(--white-dim);
+      line-height: 1.7;
+    }
+
+    /* ── Capabilities Showcase ── */
+    .capabilities {
+      position: relative;
+      z-index: 2;
+      padding: 100px 24px;
+      overflow: hidden;
+    }
+    .capabilities::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 50% 40% at 20% 50%, rgba(0, 212, 255, 0.04), transparent),
+        radial-gradient(ellipse 40% 30% at 80% 50%, rgba(20, 184, 166, 0.03), transparent);
+    }
+    .capabilities-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .capabilities-header {
+      text-align: center;
+      margin-bottom: 72px;
+    }
+    .capabilities-header .eyebrow {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: var(--teal);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .capabilities-header .eyebrow::before,
+    .capabilities-header .eyebrow::after {
+      content: '';
+      width: 40px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--teal));
+    }
+    .capabilities-header .eyebrow::after {
+      background: linear-gradient(90deg, var(--teal), transparent);
+    }
+    .capabilities-header h2 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 3rem);
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+    .capabilities-header p {
+      font-size: 1.1rem;
+      color: var(--white-dim);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .cap-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .cap-card {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 28px;
+      background: var(--surface-glass);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      transition: all 0.35s var(--ease-out);
+    }
+    .cap-card:hover {
+      border-color: var(--border-hover);
+      transform: translateX(4px);
+      box-shadow: -4px 0 20px var(--cyan-glow);
+    }
+    .cap-num {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      min-width: 48px;
+    }
+    .cap-text h3 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .cap-text p {
+      font-size: 0.88rem;
+      color: var(--white-dim);
+      line-height: 1.6;
+    }
+
+    /* ── CTA Section ── */
+    .cta-section {
+      position: relative;
+      z-index: 2;
+      padding: 120px 24px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0, 212, 255, 0.08), transparent);
+    }
+    .cta-glow-ring {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 1px solid rgba(0, 212, 255, 0.06);
+      animation: ring-expand 8s ease-out infinite;
+    }
+    .cta-glow-ring:nth-child(2) { animation-delay: 2.6s; }
+    .cta-glow-ring:nth-child(3) { animation-delay: 5.3s; }
+    .cta-content {
+      position: relative;
+      z-index: 2;
+      max-width: 660px;
+      margin: 0 auto;
+    }
+    .cta-content h2 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4.5vw, 3rem);
+      font-weight: 800;
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+    }
+    .cta-content p {
+      font-size: 1.1rem;
+      color: var(--white-dim);
+      margin-bottom: 40px;
+      line-height: 1.7;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid var(--border);
+      padding: 60px 24px;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 48px;
+    }
+    .footer-brand-col .footer-brand {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .footer-brand-col .footer-brand svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--cyan);
+      fill: none;
+      stroke-width: 2.5;
+    }
+    .footer-brand-col p {
+      font-size: 0.88rem;
+      color: var(--white-muted);
+      line-height: 1.7;
+      max-width: 320px;
+    }
+    .footer-col h4 {
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--white-dim);
+      margin-bottom: 18px;
+    }
+    .footer-col a {
+      display: block;
+      font-size: 0.88rem;
+      color: var(--white-muted);
+      padding: 4px 0;
+      transition: color 0.2s, transform 0.2s;
+    }
+    .footer-col a:hover { color: var(--cyan); transform: translateX(4px); }
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 40px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--white-muted);
+    }
+
+    /* ── Scroll reveal ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: all 0.8s var(--ease-out);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 1024px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .cap-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
+    }
+    @media (max-width: 768px) {
+      .nav { padding: 12px 16px; }
+      .nav-links { display: none; }
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .features-grid { grid-template-columns: 1fr; }
+      .hero-actions { flex-direction: column; }
+      .hero-btn { width: 100%; justify-content: center; }
+      .footer-inner { grid-template-columns: 1fr; }
+      .hero-graphic { width: 420px; height: 420px; margin-bottom: 16px; }
+      .hero { padding: 90px 16px 40px; }
+    }
+    @media (max-width: 480px) {
+      .stats-bar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Particle field background -->
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- Navigation -->
+  <nav class="nav" id="mainNav">
+    <div class="nav-brand">
+      <div class="nav-brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+      </div>
+      Aqua Pulse
+    </div>
+    <div class="nav-links">
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#capabilities" class="nav-link">Capabilities</a>
+      <a href="#stats" class="nav-link">Platform</a>
+      <button class="nav-cta" id="navAuthBtn" onclick="wiAuth ? wiAuth.login() : (window.location.href='dashboard.html')">Sign In</button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-molecule">
+      <div class="molecule-ring"></div>
+      <div class="molecule-ring"></div>
+      <div class="molecule-ring"></div>
+    </div>
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+    <div class="hero-orb hero-orb-4"></div>
+
+    <!-- ▓▓ ANIMATED HERO GRAPHIC — Water Intelligence Visualization ▓▓ -->
+    <div class="hero-graphic">
+      <svg viewBox="0 0 520 520" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="hgGlow" cx="50%" cy="44%" r="50%">
+            <stop offset="0%" stop-color="rgba(0,212,255,0.18)"/>
+            <stop offset="100%" stop-color="transparent"/>
+          </radialGradient>
+          <linearGradient id="hgCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00d4ff"/>
+            <stop offset="100%" stop-color="#14b8a6"/>
+          </linearGradient>
+          <linearGradient id="hgBeam" x1="50%" y1="0%" x2="50%" y2="100%">
+            <stop offset="0%" stop-color="rgba(0,212,255,0.5)"/>
+            <stop offset="100%" stop-color="rgba(0,212,255,0)"/>
+          </linearGradient>
+          <filter id="hgBlur"><feGaussianBlur stdDeviation="2"/></filter>
+          <filter id="hgGlowF"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+
+        <!-- Background glow -->
+        <circle cx="260" cy="230" r="220" fill="url(#hgGlow)"/>
+
+        <!-- Orbit rings (dashed, rotating) -->
+        <g class="hg-orbit-1"><circle cx="260" cy="230" r="130" class="hg-orbit-ring" stroke="rgba(0,212,255,0.12)" stroke-width="1"/></g>
+        <g class="hg-orbit-2"><circle cx="260" cy="230" r="180" class="hg-orbit-ring" stroke="rgba(20,184,166,0.10)" stroke-width="1"/></g>
+        <g class="hg-orbit-3"><ellipse cx="260" cy="230" rx="220" ry="160" class="hg-orbit-ring" stroke="rgba(99,102,241,0.08)" stroke-width="1"/></g>
+
+        <!-- Scanning beam (sweeping cone) -->
+        <g class="hg-scan-beam">
+          <polygon points="260,230 200,60 320,60" fill="url(#hgBeam)" opacity="0.3"/>
+        </g>
+
+        <!-- Beaker silhouette (background) -->
+        <g class="hg-beaker" transform="translate(170,200)">
+          <path d="M30 0 L30 120 Q30 155 60 155 L120 155 Q150 155 150 120 L150 0" fill="none" stroke="rgba(0,212,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="20" y1="0" x2="160" y2="0" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+          <!-- Liquid inside beaker -->
+          <path class="hg-beaker-liquid" d="M32 100 Q90 92 148 100 L148 153 Q148 153 120 153 L60 153 Q32 153 32 120 Z" fill="rgba(0,212,255,0.08)" stroke="rgba(0,212,255,0.15)" stroke-width="0.5"/>
+          <!-- Graduation marks -->
+          <line x1="32" y1="40" x2="50" y2="40" stroke="rgba(0,212,255,0.2)" stroke-width="0.7"/>
+          <line x1="32" y1="70" x2="45" y2="70" stroke="rgba(0,212,255,0.2)" stroke-width="0.7"/>
+          <line x1="32" y1="100" x2="50" y2="100" stroke="rgba(0,212,255,0.2)" stroke-width="0.7"/>
+          <line x1="32" y1="130" x2="45" y2="130" stroke="rgba(0,212,255,0.2)" stroke-width="0.7"/>
+        </g>
+
+        <!-- Central H2O molecule -->
+        <g class="hg-center-molecule" filter="url(#hgGlowF)">
+          <!-- Bonds -->
+          <line x1="260" y1="230" x2="220" y2="190" stroke="rgba(0,212,255,0.5)" stroke-width="3" stroke-linecap="round"/>
+          <line x1="260" y1="230" x2="300" y2="190" stroke="rgba(0,212,255,0.5)" stroke-width="3" stroke-linecap="round"/>
+          <!-- Oxygen (center) -->
+          <circle cx="260" cy="230" r="26" fill="rgba(6,13,26,0.9)" stroke="url(#hgCyan)" stroke-width="2.5"/>
+          <text x="260" y="236" text-anchor="middle" fill="#00d4ff" font-family="Outfit,sans-serif" font-size="18" font-weight="700">O</text>
+          <!-- Hydrogen 1 -->
+          <circle cx="220" cy="190" r="18" fill="rgba(6,13,26,0.9)" stroke="#5be5ff" stroke-width="2"/>
+          <text x="220" y="196" text-anchor="middle" fill="#5be5ff" font-family="Outfit,sans-serif" font-size="14" font-weight="700">H</text>
+          <!-- Hydrogen 2 -->
+          <circle cx="300" cy="190" r="18" fill="rgba(6,13,26,0.9)" stroke="#5be5ff" stroke-width="2"/>
+          <text x="300" y="196" text-anchor="middle" fill="#5be5ff" font-family="Outfit,sans-serif" font-size="14" font-weight="700">H</text>
+        </g>
+
+        <!-- Orbiting ion markers -->
+        <g class="hg-orbit-1">
+          <g class="hg-ion" transform="translate(390,230)">
+            <circle r="12" fill="rgba(6,13,26,0.9)" stroke="#14b8a6" stroke-width="1.5"/>
+            <text y="4" text-anchor="middle" fill="#14b8a6" font-family="Outfit,sans-serif" font-size="9" font-weight="700">Na⁺</text>
+          </g>
+          <g class="hg-ion" transform="translate(130,230)">
+            <circle r="12" fill="rgba(6,13,26,0.9)" stroke="#14b8a6" stroke-width="1.5"/>
+            <text y="4" text-anchor="middle" fill="#14b8a6" font-family="Outfit,sans-serif" font-size="9" font-weight="700">Cl⁻</text>
+          </g>
+        </g>
+        <g class="hg-orbit-2">
+          <g class="hg-ion" transform="translate(260,50)">
+            <circle r="14" fill="rgba(6,13,26,0.9)" stroke="#6366f1" stroke-width="1.5"/>
+            <text y="4" text-anchor="middle" fill="#a5b4fc" font-family="Outfit,sans-serif" font-size="8" font-weight="700">Ca²⁺</text>
+          </g>
+          <g class="hg-ion" transform="translate(260,410)">
+            <circle r="14" fill="rgba(6,13,26,0.9)" stroke="#6366f1" stroke-width="1.5"/>
+            <text y="4" text-anchor="middle" fill="#a5b4fc" font-family="Outfit,sans-serif" font-size="8" font-weight="700">SO₄²⁻</text>
+          </g>
+        </g>
+        <g class="hg-orbit-3">
+          <g class="hg-ion" transform="translate(80,230)">
+            <circle r="11" fill="rgba(6,13,26,0.9)" stroke="rgba(0,212,255,0.5)" stroke-width="1.5"/>
+            <text y="4" text-anchor="middle" fill="rgba(0,212,255,0.7)" font-family="Outfit,sans-serif" font-size="8" font-weight="600">Fe²⁺</text>
+          </g>
+          <g class="hg-ion" transform="translate(440,230)">
+            <circle r="11" fill="rgba(6,13,26,0.9)" stroke="rgba(0,212,255,0.5)" stroke-width="1.5"/>
+            <text y="4" text-anchor="middle" fill="rgba(0,212,255,0.7)" font-family="Outfit,sans-serif" font-size="8" font-weight="600">Ba²⁺</text>
+          </g>
+        </g>
+
+        <!-- Data readout particles (rising from beaker area) -->
+        <g transform="translate(260,380)">
+          <circle class="hg-data-particle" r="2" fill="#00d4ff" cx="-30" cy="0"/>
+          <circle class="hg-data-particle" r="1.5" fill="#14b8a6" cx="-10" cy="5"/>
+          <circle class="hg-data-particle" r="2.5" fill="#5be5ff" cx="10" cy="-5"/>
+          <circle class="hg-data-particle" r="1.5" fill="#6366f1" cx="25" cy="3"/>
+          <circle class="hg-data-particle" r="2" fill="#00d4ff" cx="-20" cy="8"/>
+          <circle class="hg-data-particle" r="1.5" fill="#14b8a6" cx="35" cy="-3"/>
+        </g>
+
+        <!-- Waveform / ECG-style readout lines (bottom-left) -->
+        <g transform="translate(40,440)">
+          <polyline class="hg-wave-line" points="0,20 15,20 25,5 35,35 45,10 55,25 70,20 85,20 95,8 105,32 115,15 130,20 150,20" fill="none" stroke="rgba(0,212,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline class="hg-wave-line" points="0,38 20,38 28,28 38,48 48,30 60,42 80,38 100,38" fill="none" stroke="rgba(20,184,166,0.3)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+
+        <!-- Shield icon (protection / "protect your water") top-right -->
+        <g class="hg-shield-pulse" transform="translate(430,90)">
+          <path d="M0,-24 L20,-16 L20,4 Q20,20 0,28 Q-20,20 -20,4 L-20,-16 Z" fill="rgba(0,212,255,0.06)" stroke="rgba(0,212,255,0.35)" stroke-width="1.5"/>
+          <polyline points="-6,2 -1,8 10,-6" fill="none" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+
+        <!-- Readout panel (top-left) -->
+        <g transform="translate(30,70)" class="hg-readout" style="animation-delay:0.5s">
+          <rect width="100" height="60" rx="6" fill="rgba(6,13,26,0.7)" stroke="rgba(0,212,255,0.15)" stroke-width="1"/>
+          <text x="10" y="18" fill="rgba(0,212,255,0.6)" font-family="Inter,sans-serif" font-size="8" font-weight="600">TDS</text>
+          <text x="10" y="34" fill="#00d4ff" font-family="Outfit,sans-serif" font-size="16" font-weight="700">147,200</text>
+          <text x="10" y="50" fill="rgba(0,212,255,0.4)" font-family="Inter,sans-serif" font-size="8">mg/L</text>
+        </g>
+
+        <!-- Readout panel (bottom-right) -->
+        <g transform="translate(390,420)" class="hg-readout" style="animation-delay:1.2s">
+          <rect width="100" height="60" rx="6" fill="rgba(6,13,26,0.7)" stroke="rgba(20,184,166,0.15)" stroke-width="1"/>
+          <text x="10" y="18" fill="rgba(20,184,166,0.6)" font-family="Inter,sans-serif" font-size="8" font-weight="600">pH Level</text>
+          <text x="10" y="34" fill="#14b8a6" font-family="Outfit,sans-serif" font-size="16" font-weight="700">6.82</text>
+          <text x="10" y="50" fill="rgba(20,184,166,0.4)" font-family="Inter,sans-serif" font-size="8">Optimal Range</text>
+        </g>
+
+        <!-- Readout panel (mid-right) -->
+        <g transform="translate(420,260)" class="hg-readout" style="animation-delay:0.8s">
+          <rect width="80" height="45" rx="5" fill="rgba(6,13,26,0.7)" stroke="rgba(99,102,241,0.15)" stroke-width="1"/>
+          <text x="8" y="15" fill="rgba(99,102,241,0.6)" font-family="Inter,sans-serif" font-size="7" font-weight="600">Cl⁻</text>
+          <text x="8" y="30" fill="#a5b4fc" font-family="Outfit,sans-serif" font-size="13" font-weight="700">89,400</text>
+          <text x="8" y="40" fill="rgba(99,102,241,0.4)" font-family="Inter,sans-serif" font-size="7">mg/L</text>
+        </g>
+
+        <!-- Connecting data lines (molecule to readout panels) -->
+        <line x1="260" y1="256" x2="130" y2="100" stroke="rgba(0,212,255,0.06)" stroke-width="0.5" stroke-dasharray="4 4"/>
+        <line x1="286" y1="230" x2="420" y2="275" stroke="rgba(99,102,241,0.06)" stroke-width="0.5" stroke-dasharray="4 4"/>
+        <line x1="260" y1="256" x2="440" y2="440" stroke="rgba(20,184,166,0.06)" stroke-width="0.5" stroke-dasharray="4 4"/>
+      </svg>
+    </div>
+
+    <!-- ▓▓ TEXT CONTENT — Below the graphic ▓▓ -->
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Permian Basin Water Intelligence
+      </div>
+      <h1>
+        <span class="line-accent">Water Composition.</span><br>
+        <span class="gradient-text">Corrosion. Scaling. Bacteria. Flow.</span>
+      </h1>
+      <p class="hero-sub">
+        Analyze produced water composition to detect corrosion risk, scaling potential, bacterial contamination, and flowability issues &mdash; before they become downhole problems. Automated lab report processing, variance tracking, and formation intelligence for Permian Basin operators.
+      </p>
+      <div class="hero-actions">
+        <a href="dashboard.html" class="hero-btn hero-btn-primary">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Open Dashboard
+        </a>
+        <a href="#features" class="hero-btn hero-btn-secondary">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Explore Platform
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <section class="stats-bar" id="stats">
+    <div class="stat-item">
+      <div class="stat-number" data-count="247">0</div>
+      <div class="stat-label">Real-Time Monitoring</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number" data-count="100">0</div>
+      <div class="stat-label">Parameters Tracked</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number" data-suffix="s" data-count="5">&lt;5s</div>
+      <div class="stat-label">PDF Processing Time</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number" data-suffix="%" data-count="99.9">0</div>
+      <div class="stat-label">Uptime Reliability</div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="features-header reveal">
+      <div class="eyebrow">Composition Analysis</div>
+      <h2>Detect Problems Before<br>They Reach the Casing</h2>
+      <p>From lab report ingestion to variance tracking, Aqua Pulse turns raw water chemistry into actionable corrosion, scaling, bacteria, and flowability indicators.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        </div>
+        <h3>Well Monitoring</h3>
+        <p>Track water chemistry across every well in your portfolio. Instant alerts when parameters drift outside acceptable ranges.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h3>PDF Lab Reports</h3>
+        <p>Upload lab PDFs and get structured data in seconds. AI extracts ion concentrations, pH, TDS, and 100+ parameters automatically.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        </div>
+        <h3>Formation Mapping</h3>
+        <p>Interactive geospatial maps showing water chemistry by formation. Visualize disposal well compatibility and flowback trends.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3>Smart Alerts</h3>
+        <p>Configurable threshold alerts for critical chemistry changes. Scaling risk, corrosion potential, and compatibility warnings.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>Variance Tracking</h3>
+        <p>Monitor composition changes over time. Detect trending shifts in ion concentrations, pH drift, and TDS fluctuations before they trigger scaling or corrosion events.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3>Data Query Engine</h3>
+        <p>Search across all water analysis data with natural language. Filter by formation, date range, well, or any chemistry parameter.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Capabilities -->
+  <section class="capabilities" id="capabilities">
+    <div class="capabilities-inner">
+      <div class="capabilities-header reveal">
+        <div class="eyebrow">Management Add-On</div>
+        <h2>Manage the Business Side Too</h2>
+        <p>Included management module for billing, estimates, expenses, AR/AP, and customer tracking &mdash; so your water operation runs from one platform.</p>
+      </div>
+      <div class="cap-grid">
+        <div class="cap-card reveal">
+          <div class="cap-num">01</div>
+          <div class="cap-text">
+            <h3>Billing &amp; Invoicing</h3>
+            <p>Generate professional invoices, track payments, and manage billing cycles for water treatment services.</p>
+          </div>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-num">02</div>
+          <div class="cap-text">
+            <h3>Estimates &amp; Proposals</h3>
+            <p>Create accurate treatment estimates based on historical chemistry data and AI-powered cost projections.</p>
+          </div>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-num">03</div>
+          <div class="cap-text">
+            <h3>Expense Tracking</h3>
+            <p>Categorize and track all chemical costs, transport fees, disposal charges, and operational expenses.</p>
+          </div>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-num">04</div>
+          <div class="cap-text">
+            <h3>Customer Management</h3>
+            <p>Maintain operator profiles, well assignments, contact info, and service history in one unified CRM.</p>
+          </div>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-num">05</div>
+          <div class="cap-text">
+            <h3>Competitor Intelligence</h3>
+            <p>Track competitor products, pricing, tech stacks, and service areas. Know what the market is doing.</p>
+          </div>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-num">06</div>
+          <div class="cap-text">
+            <h3>AR/AP Management</h3>
+            <p>Full accounts receivable and payable with aging reports, payment tracking, and cash flow projections.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-glow-ring"></div>
+    <div class="cta-glow-ring"></div>
+    <div class="cta-glow-ring"></div>
+    <div class="cta-content reveal">
+      <h2>Ready to Take Control of<br>Your Water Data?</h2>
+      <p>Stop chasing PDFs and spreadsheets. Let Aqua Pulse turn your water data into actionable intelligence.</p>
+      <a href="dashboard.html" class="hero-btn hero-btn-primary" style="display:inline-flex">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        Get Started Free
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand-col">
+        <div class="footer-brand">
+          <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+          Aqua Pulse
+        </div>
+        <p>Water composition analysis for the Permian Basin. Detect corrosion, scaling, bacteria, and flowability risks before they become downhole problems.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="wells.html">Wells</a>
+        <a href="map.html">Formation Map</a>
+        <a href="alerts.html">Alerts</a>
+        <a href="analytics.html">Analytics</a>
+      </div>
+      <div class="footer-col">
+        <h4>Tools</h4>
+        <a href="upload.html">Upload PDF</a>
+        <a href="query.html">Data Query</a>
+        <a href="competitor-intel.html">Competitor Intel</a>
+        <a href="variance-detection.html">Variance Detection</a>
+        <a href="multi-sample.html">Multi-Sample Avg</a>
+        <a href="millipore-analysis.html">Millipore Analysis</a>
+      </div>
+      <div class="footer-col">
+        <h4>Business</h4>
+        <a href="billing.html">Billing</a>
+        <a href="estimates.html">Estimates</a>
+        <a href="expenses.html">Expenses</a>
+        <a href="customers.html">Customers</a>
+        <a href="arap.html">AR / AP</a>
+        <a href="office-ai.html">Office AI</a>
+        <a href="business-manager.html">Business Manager</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>Aqua Pulse &copy; 2026. All rights reserved.</span>
+      <span>Powered by Echo Prime Technologies</span>
+    </div>
+  </footer>
+
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+
+    /* ── Particle Field ── */
+    var canvas = document.getElementById('particleCanvas');
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var mouse = { x: -1000, y: -1000 };
+    var dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.scale(dpr, dpr);
+    }
+
+    function createParticles() {
+      particles = [];
+      var count = Math.min(Math.floor(window.innerWidth * 0.08), 100);
+      for (var i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          r: Math.random() * 1.5 + 0.5,
+          alpha: Math.random() * 0.4 + 0.1
+        });
+      }
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      var connectDist = 150;
+
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+
+        // Mouse repulsion
+        var dx = p.x - mouse.x;
+        var dy = p.y - mouse.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          var force = (120 - dist) / 120 * 0.8;
+          p.x += (dx / dist) * force;
+          p.y += (dy / dist) * force;
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 212, 255, ' + p.alpha + ')';
+        ctx.fill();
+
+        // Connect nearby particles
+        for (var j = i + 1; j < particles.length; j++) {
+          var p2 = particles[j];
+          var d = Math.sqrt((p.x - p2.x) ** 2 + (p.y - p2.y) ** 2);
+          if (d < connectDist) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = 'rgba(0, 212, 255, ' + (0.06 * (1 - d / connectDist)) + ')';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      requestAnimationFrame(drawParticles);
+    }
+
+    resizeCanvas();
+    createParticles();
+    drawParticles();
+    window.addEventListener('resize', function() {
+      resizeCanvas();
+      createParticles();
+    });
+    document.addEventListener('mousemove', function(e) {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+    document.addEventListener('mouseleave', function() {
+      mouse.x = -1000;
+      mouse.y = -1000;
+    });
+
+    /* ── Scroll-triggered nav ── */
+    var nav = document.getElementById('mainNav');
+    window.addEventListener('scroll', function() {
+      if (window.scrollY > 80) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+
+    /* ── Scroll Reveal ── */
+    var reveals = document.querySelectorAll('.reveal');
+    var revealObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    reveals.forEach(function(el) { revealObserver.observe(el); });
+
+    /* ── Animated Counters ── */
+    var statNumbers = document.querySelectorAll('.stat-number[data-count]');
+    var counterObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var el = entry.target;
+          var target = parseFloat(el.getAttribute('data-count'));
+          var suffix = el.getAttribute('data-suffix') || '';
+          var isDecimal = target % 1 !== 0;
+          var duration = 2000;
+          var startTime = performance.now();
+
+          function tick(now) {
+            var elapsed = now - startTime;
+            var progress = Math.min(elapsed / duration, 1);
+            // ease-out cubic
+            progress = 1 - Math.pow(1 - progress, 3);
+            var current = target * progress;
+            if (isDecimal) {
+              el.textContent = current.toFixed(1) + suffix;
+            } else {
+              el.textContent = Math.round(current) + (suffix === 's' ? 's' : suffix === '%' ? '%' : '+');
+            }
+            if (progress < 1) requestAnimationFrame(tick);
+          }
+          requestAnimationFrame(tick);
+          counterObserver.unobserve(el);
+        }
+      });
+    }, { threshold: 0.5 });
+    statNumbers.forEach(function(el) { counterObserver.observe(el); });
+
+    /* ── Auth init ── */
+    if (window.wiAuth) {
+      wiAuth.init().then(function() {
+        var s = wiAuth.getState();
+        var btn = document.getElementById('navAuthBtn');
+        if (s.user && s.authorized && btn) {
+          var name = s.user.full_name || s.user.email || 'User';
+          btn.textContent = 'Dashboard →';
+          btn.onclick = function() { window.location.href = 'dashboard.html'; };
+        }
+      });
+      wiAuth.subscribe(function(s) {
+        var btn = document.getElementById('navAuthBtn');
+        if (s.user && s.authorized && btn) {
+          btn.textContent = 'Dashboard →';
+          btn.onclick = function() { window.location.href = 'dashboard.html'; };
+        }
+      });
+    }
+  })();
+  </script>
+  <!-- Echo Chat Sentinel Widget -->
+  <script src="/assets/js/echo-sentinel-widget.js" defer></script>
+</body>
+</html>

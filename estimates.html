@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estimates — Aqua Pulse</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var apiPost = bgat.api.apiPost || function(path, body) {
+      return bgat.api.apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    };
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'estimates',
+      title: 'Estimates',
+      subtitle: 'Create estimates and convert to invoices with one click'
+    });
+
+    content.innerHTML = '<div class="stat-grid">' + c.skeletonRows(4, 120) + '</div>' +
+      '<div class="glass-card" style="padding:24px">' + c.skeletonRows(5, 40) + '</div>';
+
+    var wells = [];
+    var customers = [];
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && s.authorized && !s.loading) loadEstimates();
+    });
+
+    async function loadEstimates() {
+      try {
+        var [estimatesRes, statsRes, wellsRes, custRes] = await Promise.all([
+          api('/api/v1/estimates?per_page=50').catch(function() { return { items: [], total: 0 }; }),
+          api('/api/v1/estimates/stats/summary').catch(function() { return {}; }),
+          api('/api/v1/wells?per_page=200').catch(function() { return { items: [] }; }),
+          api('/api/v1/customers?per_page=200&status=active').catch(function() { return { items: [] }; })
+        ]);
+        wells = wellsRes.items || [];
+        customers = custRes.items || [];
+        renderEstimates(estimatesRes.items || [], statsRes);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading estimates: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderEstimates(estimates, stats) {
+      var html = '';
+
+      html += '<div class="stat-grid">';
+      html += statCard('Total Estimates', stats.total_estimates || 0, ICONS.file, 'var(--cyan)');
+      html += statCard('Pipeline Value', '$' + formatMoney(stats.pipeline_value || 0), ICONS.trending, '#3b82f6');
+      html += statCard('Accepted', stats.accepted || 0, ICONS.check, '#22c55e');
+      html += statCard('Converted', stats.converted || 0, ICONS.convert, '#8b5cf6');
+      html += '</div>';
+
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      html += '<span class="section-label">All Estimates</span>';
+      html += '<button class="btn-primary btn-sm" id="btnNewEstimate">+ New Estimate</button>';
+      html += '</div>';
+
+      html += '<div class="glass-card" style="padding:24px">';
+      if (estimates.length === 0) {
+        html += '<div class="empty-state">';
+        html += '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+        html += '<p>No estimates yet</p>';
+        html += '<p style="font-size:0.8rem;color:var(--white-dim)">Click "New Estimate" to create your first estimate</p>';
+        html += '</div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Estimate #</th><th>Customer</th><th>Service</th><th>Amount</th><th>Status</th><th>Valid Until</th><th>Date</th><th></th>';
+        html += '</tr></thead><tbody>';
+        estimates.forEach(function(est) {
+          var isConverted = est.status === 'converted';
+          var isExpired = est.valid_until && new Date(est.valid_until) < new Date() && !isConverted;
+          html += '<tr' + (isExpired ? ' style="opacity:0.6"' : '') + '>';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(est.estimate_number) + '</td>';
+          html += '<td>' + c.escapeHtml(est.customer_name) + '</td>';
+          html += '<td style="color:var(--white-dim)">' + c.escapeHtml((est.service_type || '').replace(/_/g, ' ')) + '</td>';
+          html += '<td style="font-weight:600">$' + formatMoney(est.total_cents / 100) + '</td>';
+          html += '<td>' + statusBadge(est.status, isExpired) + '</td>';
+          html += '<td style="color:var(--white-dim)">' + (est.valid_until ? c.formatDate(est.valid_until) : '—') + '</td>';
+          html += '<td style="color:var(--white-dim)">' + c.formatDate(est.created_at) + '</td>';
+          html += '<td style="white-space:nowrap">';
+          if (!isConverted) {
+            if (est.status === 'draft') {
+              html += '<button class="btn-outline btn-sm" onclick="sendEstimate(\'' + est.id + '\')" style="font-size:0.7rem;padding:2px 8px">Send</button> ';
+            }
+            if (est.status === 'sent') {
+              html += '<button class="btn-outline btn-sm" onclick="acceptEstimate(\'' + est.id + '\')" style="font-size:0.7rem;padding:2px 8px">Accept</button> ';
+            }
+            // THE CONVERT TO INVOICE BUTTON
+            if (est.status !== 'declined') {
+              html += '<button class="btn-primary btn-sm" onclick="convertToInvoice(\'' + est.id + '\', \'' + c.escapeHtml(est.estimate_number) + '\')" style="font-size:0.7rem;padding:4px 12px;background:linear-gradient(135deg,#8b5cf6,#6d28d9)">';
+              html += '<span style="display:inline-flex;align-items:center;gap:4px">' + ICONS.convertSmall + ' Convert to Invoice</span></button> ';
+            }
+            html += '<button class="btn-outline btn-sm" onclick="deleteEstimate(\'' + est.id + '\')" style="font-size:0.7rem;padding:2px 6px;color:#ef4444;border-color:#ef444440">&times;</button>';
+          } else {
+            html += '<span style="font-size:0.75rem;color:#8b5cf6">→ Invoiced</span>';
+          }
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      content.innerHTML = html;
+      document.getElementById('btnNewEstimate').addEventListener('click', showNewEstimateModal);
+    }
+
+    function showNewEstimateModal() {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px';
+
+      var wellOptions = '<option value="">— No specific well —</option>';
+      wells.forEach(function(w) {
+        wellOptions += '<option value="' + w.id + '">' + c.escapeHtml(w.well_name) + ' (' + c.escapeHtml(w.operator_name || '') + ')</option>';
+      });
+
+      var serviceOptions = [
+        { value: 'well_analysis', label: 'Well Analysis ($150/well)', price: 150 },
+        { value: 'annual_subscription', label: 'Annual Subscription ($1,800)', price: 1800 },
+        { value: 'water_sampling', label: 'Water Sampling Service ($250)', price: 250 },
+        { value: 'bacteria_analysis', label: 'Bacteria Analysis ($200)', price: 200 },
+        { value: 'gas_analysis', label: 'Gas Analysis ($175)', price: 175 },
+        { value: 'scale_assessment', label: 'Scale Risk Assessment ($300)', price: 300 },
+        { value: 'custom', label: 'Custom Amount', price: 0 }
+      ];
+      var serviceOpts = '';
+      serviceOptions.forEach(function(s) {
+        serviceOpts += '<option value="' + s.value + '" data-price="' + s.price + '">' + s.label + '</option>';
+      });
+
+      var custOptions = '<option value="">— Select Customer —</option>';
+      customers.forEach(function(cu) {
+        custOptions += '<option value="' + cu.id + '" data-name="' + c.escapeHtml(cu.company_name) + '" data-email="' + c.escapeHtml(cu.email || '') + '">' + c.escapeHtml(cu.company_name) + (cu.contact_name ? ' (' + c.escapeHtml(cu.contact_name) + ')' : '') + '</option>';
+      });
+      custOptions += '<option value="__new__">+ Add New Customer...</option>';
+
+      var formHtml = '<div class="glass-card" style="padding:32px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">';
+      formHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      formHtml += '<h2 style="font-family:var(--font-heading);color:var(--cyan);margin:0">New Estimate</h2>';
+      formHtml += '<button id="closeModal" style="background:none;border:none;color:var(--white-dim);font-size:1.5rem;cursor:pointer">&times;</button>';
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:grid;gap:16px">';
+      formHtml += formField('Customer', '<select id="estCustomerSelect" class="wi-input">' + custOptions + '</select>');
+      formHtml += '<div id="newCustFields" style="display:none">';
+      formHtml += formField('New Customer Name', '<input type="text" id="estCustomer" placeholder="e.g. Pioneer Natural Resources" class="wi-input">');
+      formHtml += formField('Customer Email', '<input type="email" id="estEmail" placeholder="billing@example.com" class="wi-input">');
+      formHtml += '</div>';
+      formHtml += formField('Well', '<select id="estWell" class="wi-input">' + wellOptions + '</select>');
+      formHtml += formField('Service Type', '<select id="estService" class="wi-input">' + serviceOpts + '</select>');
+      formHtml += formField('Unit Price ($)', '<input type="number" id="estPrice" value="150" min="0" step="0.01" class="wi-input">');
+      formHtml += formField('Quantity', '<input type="number" id="estQty" value="1" min="1" class="wi-input">');
+      formHtml += formField('Valid Until', '<input type="date" id="estValid" class="wi-input">');
+      formHtml += formField('Notes', '<textarea id="estNotes" rows="2" class="wi-input" placeholder="Optional notes..."></textarea>');
+      formHtml += '</div>';
+
+      formHtml += '<div style="margin-top:16px;padding:16px;border-radius:8px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2)">';
+      formHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--white-dim)">Subtotal:</span><span id="estSubtotal" style="color:var(--white)">$150.00</span></div>';
+      formHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--white-dim)">Tax (8.25%):</span><span id="estTax" style="color:var(--white)">$12.38</span></div>';
+      formHtml += '<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:var(--cyan)">Total:</span><span id="estTotal" style="color:var(--cyan)">$162.38</span></div>';
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:flex;gap:12px;margin-top:24px">';
+      formHtml += '<button id="btnCreateEstimate" class="btn-primary" style="flex:1">Create Estimate</button>';
+      formHtml += '<button id="btnCancelEstimate" class="btn-outline" style="flex:0">Cancel</button>';
+      formHtml += '</div>';
+      formHtml += '</div>';
+
+      overlay.innerHTML = formHtml;
+      document.body.appendChild(overlay);
+
+      function updateTotals() {
+        var price = parseFloat(document.getElementById('estPrice').value) || 0;
+        var qty = parseInt(document.getElementById('estQty').value) || 1;
+        var subtotal = price * qty;
+        var tax = subtotal * 0.0825;
+        document.getElementById('estSubtotal').textContent = '$' + formatMoney(subtotal);
+        document.getElementById('estTax').textContent = '$' + formatMoney(tax);
+        document.getElementById('estTotal').textContent = '$' + formatMoney(subtotal + tax);
+      }
+
+      document.getElementById('estCustomerSelect').addEventListener('change', function() {
+        var newFields = document.getElementById('newCustFields');
+        if (this.value === '__new__') {
+          newFields.style.display = 'grid';
+          newFields.style.gap = '16px';
+        } else {
+          newFields.style.display = 'none';
+        }
+      });
+
+      document.getElementById('estService').addEventListener('change', function() {
+        var opt = this.options[this.selectedIndex];
+        var price = parseFloat(opt.getAttribute('data-price')) || 0;
+        if (price > 0) document.getElementById('estPrice').value = price;
+        updateTotals();
+      });
+      document.getElementById('estPrice').addEventListener('input', updateTotals);
+      document.getElementById('estQty').addEventListener('input', updateTotals);
+
+      // Default valid for 30 days
+      var valid = new Date();
+      valid.setDate(valid.getDate() + 30);
+      document.getElementById('estValid').value = valid.toISOString().split('T')[0];
+
+      function closeModal() { document.body.removeChild(overlay); }
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('btnCancelEstimate').addEventListener('click', closeModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+
+      document.getElementById('btnCreateEstimate').addEventListener('click', async function() {
+        var custSelect = document.getElementById('estCustomerSelect');
+        var custVal = custSelect.value;
+        var customerName = '';
+        var customerId = '';
+        var customerEmail = '';
+
+        if (custVal === '__new__') {
+          customerName = document.getElementById('estCustomer').value.trim();
+          customerEmail = document.getElementById('estEmail').value.trim();
+          if (!customerName) { c.showToast('Customer name is required', 'error'); return; }
+        } else if (custVal) {
+          var opt = custSelect.options[custSelect.selectedIndex];
+          customerName = opt.getAttribute('data-name');
+          customerEmail = opt.getAttribute('data-email') || '';
+          customerId = custVal;
+        } else {
+          c.showToast('Please select a customer', 'error');
+          return;
+        }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        try {
+          var price = parseFloat(document.getElementById('estPrice').value) || 0;
+          var qty = parseInt(document.getElementById('estQty').value) || 1;
+          var wellId = document.getElementById('estWell').value;
+          var serviceType = document.getElementById('estService').value;
+          var serviceLabel = document.getElementById('estService').options[document.getElementById('estService').selectedIndex].text;
+
+          await apiPost('/api/v1/estimates', {
+            customer_name: customerName,
+            customer_id: customerId || undefined,
+            customer_email: customerEmail || undefined,
+            service_type: serviceType,
+            valid_until: document.getElementById('estValid').value || undefined,
+            notes: document.getElementById('estNotes').value.trim() || undefined,
+            line_items: [{
+              well_id: wellId || undefined,
+              description: serviceLabel.split('(')[0].trim(),
+              quantity: qty,
+              unit_price: price
+            }]
+          });
+          c.showToast('Estimate created', 'success');
+          closeModal();
+          loadEstimates();
+        } catch(e) {
+          c.showToast('Error: ' + e.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Create Estimate';
+        }
+      });
+    }
+
+    // Global actions
+    window.sendEstimate = async function(id) {
+      try {
+        await bgat.api.apiFetch('/api/v1/estimates/' + id, {
+          method: 'PATCH', body: JSON.stringify({ status: 'sent' })
+        });
+        c.showToast('Estimate marked as sent', 'success');
+        loadEstimates();
+      } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+    };
+
+    window.acceptEstimate = async function(id) {
+      try {
+        await bgat.api.apiFetch('/api/v1/estimates/' + id, {
+          method: 'PATCH', body: JSON.stringify({ status: 'accepted' })
+        });
+        c.showToast('Estimate accepted', 'success');
+        loadEstimates();
+      } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+    };
+
+    window.convertToInvoice = async function(id, estNumber) {
+      if (!confirm('Convert estimate ' + estNumber + ' to an invoice? This will create a new draft invoice with the same details.')) return;
+      try {
+        var result = await apiPost('/api/v1/estimates/' + id + '/convert', {});
+        c.showToast('Converted to invoice ' + result.invoice_number + '! Redirecting to billing...', 'success');
+        setTimeout(function() {
+          window.location.href = 'billing.html';
+        }, 1500);
+      } catch(e) {
+        c.showToast('Error: ' + e.message, 'error');
+      }
+    };
+
+    window.deleteEstimate = async function(id) {
+      if (!confirm('Delete this estimate?')) return;
+      try {
+        await bgat.api.apiFetch('/api/v1/estimates/' + id, { method: 'DELETE' });
+        c.showToast('Estimate deleted', 'success');
+        loadEstimates();
+      } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+    };
+
+    // Helpers
+    var ICONS = {
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      trending: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+      convert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+      convertSmall: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>'
+    };
+
+    function formatMoney(n) { return (n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div><div class="stat-card-label">' + label + '</div><div class="stat-card-value">' + value + '</div></div>';
+    }
+
+    function statusBadge(status, isExpired) {
+      var colors = {
+        draft: '#94a3b8', sent: '#3b82f6', accepted: '#22c55e',
+        declined: '#ef4444', converted: '#8b5cf6', expired: '#f59e0b'
+      };
+      var displayStatus = isExpired ? 'expired' : status;
+      var color = colors[displayStatus] || '#94a3b8';
+      return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.7rem;font-family:var(--font-heading);text-transform:uppercase;letter-spacing:1px;background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + (displayStatus || 'unknown') + '</span>';
+    }
+
+    function formField(label, inputHtml) {
+      return '<div><label style="display:block;font-family:var(--font-heading);font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--white-dim);margin-bottom:4px">' + label + '</label>' + inputHtml + '</div>';
+    }
+  })();
+  </script>
+</body>
+</html>

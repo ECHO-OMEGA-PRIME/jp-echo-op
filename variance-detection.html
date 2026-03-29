@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Variance Detection — Aqua Pulse</title>
+  <meta name="description" content="Flag extreme ion concentration fluctuations in water chemistry samples across your wells.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/variance-detection.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'variance-detection',
+      title: 'Variance Detection',
+      subtitle: 'Flag extreme ion concentration fluctuations between samples'
+    });
+
+    /* ── Ion thresholds (default % change that triggers a flag) ── */
+    var DEFAULT_THRESHOLDS = {
+      'Na':   { warn: 15, crit: 30, unit: 'mg/L', name: 'Sodium' },
+      'Ca':   { warn: 15, crit: 30, unit: 'mg/L', name: 'Calcium' },
+      'Mg':   { warn: 15, crit: 30, unit: 'mg/L', name: 'Magnesium' },
+      'K':    { warn: 20, crit: 40, unit: 'mg/L', name: 'Potassium' },
+      'Cl':   { warn: 10, crit: 25, unit: 'mg/L', name: 'Chloride' },
+      'SO4':  { warn: 20, crit: 40, unit: 'mg/L', name: 'Sulfate' },
+      'HCO3': { warn: 15, crit: 35, unit: 'mg/L', name: 'Bicarbonate' },
+      'Ba':   { warn: 25, crit: 50, unit: 'mg/L', name: 'Barium' },
+      'Sr':   { warn: 20, crit: 40, unit: 'mg/L', name: 'Strontium' },
+      'Fe':   { warn: 30, crit: 60, unit: 'mg/L', name: 'Iron' },
+      'Mn':   { warn: 30, crit: 60, unit: 'mg/L', name: 'Manganese' },
+      'SiO2': { warn: 20, crit: 40, unit: 'mg/L', name: 'Silica' },
+      'TDS':  { warn: 10, crit: 25, unit: 'mg/L', name: 'Total Dissolved Solids' },
+      'pH':   { warn: 5,  crit: 10, unit: '',     name: 'pH' },
+      'SG':   { warn: 3,  crit: 8,  unit: '',     name: 'Specific Gravity' }
+    };
+
+    var selectedWell = '';
+    var lookbackDays = 90;
+
+    content.innerHTML = c.skeletonRows(6, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) loadVarianceData();
+    });
+
+    async function loadVarianceData() {
+      try {
+        var params = new URLSearchParams();
+        params.set('lookback_days', lookbackDays);
+        if (selectedWell) params.set('well_id', selectedWell);
+
+        var [wells, variance] = await Promise.all([
+          api('/api/v1/wells?per_page=200').catch(function() { return { items: [] }; }),
+          api('/api/v1/water-chemistry/variance?' + params.toString()).catch(function() { return { flags: [], summary: {} }; })
+        ]);
+        renderVariance(wells.items || [], variance);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderVariance(wells, data) {
+      var flags = data.flags || [];
+      var summary = data.summary || {};
+      var html = '';
+
+      /* ── Controls ── */
+      html += '<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:24px">';
+      html += '<div style="flex:1;min-width:200px">';
+      html += '<label style="display:block;font-size:0.75rem;color:var(--white-dim);margin-bottom:4px;font-family:var(--font-display)">Well Filter</label>';
+      html += '<select id="vdWellSelect" style="width:100%;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--deep-alt);color:var(--white);font-size:0.85rem">';
+      html += '<option value="">All Wells</option>';
+      wells.forEach(function(w) {
+        var sel = w.id === selectedWell ? ' selected' : '';
+        html += '<option value="' + w.id + '"' + sel + '>' + c.escapeHtml(w.well_name) + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div style="min-width:160px">';
+      html += '<label style="display:block;font-size:0.75rem;color:var(--white-dim);margin-bottom:4px;font-family:var(--font-display)">Lookback Period</label>';
+      html += '<select id="vdLookback" style="width:100%;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--deep-alt);color:var(--white);font-size:0.85rem">';
+      [30, 60, 90, 180, 365].forEach(function(d) {
+        var sel = d === lookbackDays ? ' selected' : '';
+        html += '<option value="' + d + '"' + sel + '>' + d + ' days</option>';
+      });
+      html += '</select></div>';
+      html += '<div style="padding-top:18px"><button class="btn-primary btn-sm" id="vdRefresh">Analyze</button></div>';
+      html += '</div>';
+
+      /* ── Summary Stats ── */
+      html += '<div class="stat-grid" style="margin-bottom:24px">';
+      html += statCard('Wells Analyzed', summary.wells_analyzed || wells.length, ICONS.wells, 'var(--cyan)');
+      html += statCard('Samples Compared', summary.samples_compared || 0, ICONS.beaker, 'var(--teal)');
+      html += statCard('Warnings', summary.warning_count || 0, ICONS.warn, '#f59e0b');
+      html += statCard('Critical Flags', summary.critical_count || 0, ICONS.critical, '#ef4444');
+      html += '</div>';
+
+      /* ── Threshold Reference ── */
+      html += '<div class="glass-card" style="padding:20px;margin-bottom:24px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+      html += '<span class="section-label" style="margin:0">Ion Variance Thresholds</span>';
+      html += '<button class="btn-outline btn-sm" id="vdToggleThresh">Show / Hide</button>';
+      html += '</div>';
+      html += '<div id="vdThresholds" style="display:none;overflow-x:auto"><table class="data-table"><thead><tr>';
+      html += '<th>Ion</th><th>Full Name</th><th style="text-align:center">Warning (%Δ)</th><th style="text-align:center">Critical (%Δ)</th><th>Unit</th>';
+      html += '</tr></thead><tbody>';
+      Object.keys(DEFAULT_THRESHOLDS).forEach(function(ion) {
+        var t = DEFAULT_THRESHOLDS[ion];
+        html += '<tr>';
+        html += '<td style="color:var(--cyan);font-weight:600;font-family:var(--font-display)">' + ion + '</td>';
+        html += '<td>' + t.name + '</td>';
+        html += '<td style="text-align:center;color:#f59e0b">±' + t.warn + '%</td>';
+        html += '<td style="text-align:center;color:#ef4444">±' + t.crit + '%</td>';
+        html += '<td style="color:var(--white-dim)">' + (t.unit || '—') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+
+      /* ── Variance Flags Table ── */
+      html += '<div class="glass-card" style="padding:24px">';
+      html += '<span class="section-label">Detected Variance Flags</span>';
+
+      if (flags.length === 0) {
+        /* Demo data when API not connected */
+        html += renderDemoFlags();
+      } else {
+        html += '<div style="overflow-x:auto;margin-top:16px"><table class="data-table"><thead><tr>';
+        html += '<th>Well</th><th>Ion</th><th>Sample A</th><th>Sample B</th><th style="text-align:right">Change</th><th style="text-align:center">Severity</th><th>Date Range</th>';
+        html += '</tr></thead><tbody>';
+        flags.forEach(function(f) {
+          var changeColor = Math.abs(f.pct_change) >= DEFAULT_THRESHOLDS[f.ion]?.crit ? '#ef4444' : '#f59e0b';
+          html += '<tr>';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(f.well_name) + '</td>';
+          html += '<td style="font-family:var(--font-display)">' + c.escapeHtml(f.ion) + '</td>';
+          html += '<td>' + c.formatNumber(f.value_a, 2) + ' ' + (DEFAULT_THRESHOLDS[f.ion]?.unit || '') + '</td>';
+          html += '<td>' + c.formatNumber(f.value_b, 2) + ' ' + (DEFAULT_THRESHOLDS[f.ion]?.unit || '') + '</td>';
+          html += '<td style="text-align:right;color:' + changeColor + ';font-weight:600">' + (f.pct_change > 0 ? '+' : '') + f.pct_change.toFixed(1) + '%</td>';
+          html += '<td style="text-align:center">' + c.severityBadge(f.severity) + '</td>';
+          html += '<td style="color:var(--white-dim);font-size:0.8rem">' + c.formatDate(f.date_a) + ' → ' + c.formatDate(f.date_b) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      /* ── How It Works ── */
+      html += '<div class="glass-card" style="padding:24px;margin-top:24px">';
+      html += '<span class="section-label">How Variance Detection Works</span>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:16px">';
+      var steps = [
+        { num: '1', title: 'Sample Ingestion', desc: 'Upload lab PDFs or enter data manually. Each sample captures 15+ ion parameters.' },
+        { num: '2', title: 'Sequential Comparison', desc: 'Each sample is compared to its predecessor for the same well. Percentage change is calculated per ion.' },
+        { num: '3', title: 'Threshold Evaluation', desc: 'Changes exceeding warning (yellow) or critical (red) thresholds are flagged automatically.' },
+        { num: '4', title: 'Alert Generation', desc: 'Critical flags trigger Smart Alerts. All flags appear on this dashboard with full context.' }
+      ];
+      steps.forEach(function(s) {
+        html += '<div style="text-align:center;padding:12px">';
+        html += '<div style="width:40px;height:40px;border-radius:50%;background:var(--cyan-glow-strong);border:2px solid var(--cyan);display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:1rem;color:var(--cyan);margin-bottom:10px">' + s.num + '</div>';
+        html += '<h3 style="font-family:var(--font-display);font-size:0.9rem;font-weight:600;color:var(--white);margin-bottom:6px">' + s.title + '</h3>';
+        html += '<p style="font-size:0.8rem;color:var(--white-dim);line-height:1.4">' + s.desc + '</p>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+
+      content.innerHTML = html;
+
+      /* ── Wire controls ── */
+      document.getElementById('vdRefresh').addEventListener('click', function() {
+        selectedWell = document.getElementById('vdWellSelect').value;
+        lookbackDays = parseInt(document.getElementById('vdLookback').value) || 90;
+        content.innerHTML = c.skeletonRows(6, 48);
+        loadVarianceData();
+      });
+      document.getElementById('vdToggleThresh').addEventListener('click', function() {
+        var el = document.getElementById('vdThresholds');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    function renderDemoFlags() {
+      var demo = [
+        { well: 'SWD Permian #4', ion: 'Cl', a: 145200, b: 189760, pct: 30.7, sev: 'CRITICAL', dA: '2026-01-15', dB: '2026-02-12' },
+        { well: 'SWD Permian #4', ion: 'TDS', a: 268000, b: 321600, pct: 20.0, sev: 'WARNING', dA: '2026-01-15', dB: '2026-02-12' },
+        { well: 'Midland Basin #12', ion: 'Ba', a: 18.4, b: 31.2, pct: 69.6, sev: 'CRITICAL', dA: '2026-01-22', dB: '2026-02-19' },
+        { well: 'Midland Basin #12', ion: 'Fe', a: 4.2, b: 7.1, pct: 69.0, sev: 'CRITICAL', dA: '2026-01-22', dB: '2026-02-19' },
+        { well: 'Delaware #7', ion: 'SO4', a: 2840, b: 3550, pct: 25.0, sev: 'WARNING', dA: '2026-02-01', dB: '2026-03-01' },
+        { well: 'Spraberry Trend #3', ion: 'Ca', a: 12400, b: 14880, pct: 20.0, sev: 'WARNING', dA: '2026-02-05', dB: '2026-03-05' },
+        { well: 'Spraberry Trend #3', ion: 'Sr', a: 420, b: 588, pct: 40.0, sev: 'CRITICAL', dA: '2026-02-05', dB: '2026-03-05' },
+        { well: 'SWD Howard Co #1', ion: 'pH', a: 6.8, b: 5.9, pct: -13.2, sev: 'CRITICAL', dA: '2026-02-10', dB: '2026-03-10' }
+      ];
+
+      var html = '<p style="color:var(--cyan-light);font-size:0.8rem;margin:12px 0;padding:8px 12px;background:var(--cyan-glow);border-radius:6px;border:1px solid var(--border-hover)">';
+      html += '&#9432; Showing demo data — connect lab results to see live variance flags.</p>';
+      html += '<div style="overflow-x:auto;margin-top:12px"><table class="data-table"><thead><tr>';
+      html += '<th>Well</th><th>Ion</th><th style="text-align:right">Sample A</th><th style="text-align:right">Sample B</th><th style="text-align:right">Change</th><th style="text-align:center">Severity</th><th>Date Range</th>';
+      html += '</tr></thead><tbody>';
+      demo.forEach(function(f) {
+        var changeColor = f.sev === 'CRITICAL' ? '#ef4444' : '#f59e0b';
+        var unit = DEFAULT_THRESHOLDS[f.ion] ? DEFAULT_THRESHOLDS[f.ion].unit : '';
+        html += '<tr>';
+        html += '<td style="color:var(--cyan);font-weight:600">' + f.well + '</td>';
+        html += '<td style="font-family:var(--font-display)">' + f.ion + '</td>';
+        html += '<td style="text-align:right">' + c.formatNumber(f.a, f.a < 100 ? 1 : 0) + ' ' + unit + '</td>';
+        html += '<td style="text-align:right">' + c.formatNumber(f.b, f.b < 100 ? 1 : 0) + ' ' + unit + '</td>';
+        html += '<td style="text-align:right;color:' + changeColor + ';font-weight:600">' + (f.pct > 0 ? '+' : '') + f.pct.toFixed(1) + '%</td>';
+        html += '<td style="text-align:center">' + c.severityBadge(f.sev) + '</td>';
+        html += '<td style="color:var(--white-dim);font-size:0.8rem">' + f.dA + ' → ' + f.dB + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    /* ── Helpers ── */
+    var ICONS = {
+      wells: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg>',
+      beaker: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v4l-4 8a4 4 0 0 0 3.8 5.2h8.4A4 4 0 0 0 20 15L16 7V3"/><line x1="8" y1="3" x2="16" y2="3"/></svg>',
+      warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      critical: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+    };
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div>' +
+        '<div class="stat-card-label">' + label + '</div>' +
+        '<div class="stat-card-value">' + value + '</div>' +
+        '</div>';
+    }
+  })();
+  </script>
+</body>
+</html>

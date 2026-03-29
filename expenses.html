@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses — Aqua Pulse</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var apiPost = bgat.api.apiPost || function(path, body) {
+      return bgat.api.apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    };
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'expenses',
+      title: 'Expenses',
+      subtitle: 'Track and manage all business expenses'
+    });
+
+    content.innerHTML = '<div class="stat-grid">' + c.skeletonRows(4, 120) + '</div>' +
+      '<div class="glass-card" style="padding:24px">' + c.skeletonRows(5, 40) + '</div>';
+
+    var wells = [];
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && s.authorized && !s.loading) loadExpenses();
+    });
+
+    async function loadExpenses() {
+      try {
+        var [expensesRes, statsRes, wellsRes] = await Promise.all([
+          api('/api/v1/expenses?per_page=50').catch(function() { return { items: [], total: 0 }; }),
+          api('/api/v1/expenses/stats/summary').catch(function() { return {}; }),
+          api('/api/v1/wells?per_page=200').catch(function() { return { items: [] }; })
+        ]);
+        wells = wellsRes.items || [];
+        renderExpenses(expensesRes.items || [], statsRes);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading expenses: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderExpenses(expenses, stats) {
+      var html = '';
+
+      html += '<div class="stat-grid">';
+      html += statCard('Total Spent', '$' + formatMoney(stats.total_spent || 0), ICONS.dollar, '#ef4444');
+      html += statCard('Pending', '$' + formatMoney(stats.pending || 0), ICONS.clock, 'var(--orange)');
+      html += statCard('Approved', '$' + formatMoney(stats.approved || 0), ICONS.check, '#3b82f6');
+      html += statCard('Paid', stats.paid_count || 0, ICONS.paid, '#22c55e');
+      html += '</div>';
+
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      html += '<span class="section-label">All Expenses</span>';
+      html += '<div style="display:flex;gap:8px">';
+      html += '<select id="filterCategory" class="wi-input" style="width:auto;padding:6px 12px;font-size:0.8rem">';
+      html += '<option value="">All Categories</option>';
+      var cats = ['operating','equipment','supplies','chemicals','lab_fees','fuel','insurance','rent','payroll','travel','maintenance','other'];
+      cats.forEach(function(cat) {
+        html += '<option value="' + cat + '">' + cat.replace(/_/g, ' ').replace(/\b\w/g, function(l){return l.toUpperCase()}) + '</option>';
+      });
+      html += '</select>';
+      html += '<button class="btn-outline btn-sm" id="btnScanReceipt" style="background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.4);color:#a78bfa">' +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+        'Scan Receipt</button>';
+      html += '<button class="btn-primary btn-sm" id="btnNewExpense">+ New Expense</button>';
+      html += '</div></div>';
+
+      html += '<div class="glass-card" style="padding:24px">';
+      if (expenses.length === 0) {
+        html += '<div class="empty-state">';
+        html += '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>';
+        html += '<p>No expenses recorded yet</p>';
+        html += '<p style="font-size:0.8rem;color:var(--white-dim)">Click "New Expense" to track your first expense</p>';
+        html += '</div>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Receipt</th><th>Status</th><th>Well</th><th>QB</th><th></th>';
+        html += '</tr></thead><tbody>';
+        expenses.forEach(function(exp) {
+          html += '<tr>';
+          html += '<td style="color:var(--white-dim)">' + c.formatDate(exp.expense_date || exp.created_at) + '</td>';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(exp.vendor_name) + '</td>';
+          html += '<td>' + categoryBadge(exp.category) + '</td>';
+          html += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.escapeHtml(exp.description || '—') + '</td>';
+          html += '<td style="font-weight:600">$' + formatMoney(exp.total_cents / 100) + '</td>';
+          html += '<td style="text-align:center">' + receiptBadge(exp.receipt_url, exp.id) + '</td>';
+          html += '<td>' + statusBadge(exp.status) + '</td>';
+          html += '<td style="color:var(--white-dim)">' + c.escapeHtml(exp.well_name || '—') + '</td>';
+          html += '<td>' + qbBadge(exp.qb_sync_status) + '</td>';
+          html += '<td style="white-space:nowrap">';
+          if (exp.status === 'pending') {
+            html += '<button class="btn-outline btn-sm" onclick="approveExpense(\'' + exp.id + '\')" style="font-size:0.7rem;padding:2px 8px">Approve</button> ';
+          }
+          if (exp.status === 'approved') {
+            html += '<button class="btn-outline btn-sm" onclick="markExpensePaid(\'' + exp.id + '\')" style="font-size:0.7rem;padding:2px 8px">Mark Paid</button> ';
+          }
+          if (exp.status !== 'paid') {
+            html += '<button class="btn-outline btn-sm" onclick="deleteExpense(\'' + exp.id + '\')" style="font-size:0.7rem;padding:2px 6px;color:#ef4444;border-color:#ef444440">&times;</button>';
+          }
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+
+      content.innerHTML = html;
+
+      document.getElementById('btnNewExpense').addEventListener('click', showNewExpenseModal);
+      document.getElementById('btnScanReceipt').addEventListener('click', showScanReceiptModal);
+      document.getElementById('filterCategory').addEventListener('change', function() {
+        var cat = this.value;
+        loadFilteredExpenses(cat);
+      });
+    }
+
+    async function loadFilteredExpenses(category) {
+      try {
+        var url = '/api/v1/expenses?per_page=50';
+        if (category) url += '&category=' + encodeURIComponent(category);
+        var [expensesRes, statsRes] = await Promise.all([
+          api(url), api('/api/v1/expenses/stats/summary')
+        ]);
+        renderExpenses(expensesRes.items || [], statsRes);
+        if (category) document.getElementById('filterCategory').value = category;
+      } catch(e) {
+        c.showToast('Error filtering: ' + e.message, 'error');
+      }
+    }
+
+    function showNewExpenseModal() {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px';
+
+      var wellOptions = '<option value="">— No specific well —</option>';
+      wells.forEach(function(w) {
+        wellOptions += '<option value="' + w.id + '">' + c.escapeHtml(w.well_name) + '</option>';
+      });
+
+      var cats = ['operating','equipment','supplies','chemicals','lab_fees','fuel','insurance','rent','payroll','travel','maintenance','other'];
+      var catOpts = '';
+      cats.forEach(function(cat) {
+        catOpts += '<option value="' + cat + '">' + cat.replace(/_/g, ' ').replace(/\b\w/g, function(l){return l.toUpperCase()}) + '</option>';
+      });
+
+      var formHtml = '<div class="glass-card" style="padding:32px;max-width:550px;width:100%;max-height:90vh;overflow-y:auto">';
+      formHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      formHtml += '<h2 style="font-family:var(--font-heading);color:var(--cyan);margin:0">New Expense</h2>';
+      formHtml += '<button id="closeModal" style="background:none;border:none;color:var(--white-dim);font-size:1.5rem;cursor:pointer">&times;</button>';
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:grid;gap:16px">';
+      formHtml += formField('Vendor Name', '<input type="text" id="expVendor" placeholder="e.g. Halliburton" class="wi-input">');
+      formHtml += formField('Vendor Email', '<input type="email" id="expEmail" placeholder="billing@vendor.com" class="wi-input">');
+      formHtml += formField('Category', '<select id="expCategory" class="wi-input">' + catOpts + '</select>');
+      formHtml += formField('Description', '<input type="text" id="expDesc" placeholder="What was purchased?" class="wi-input">');
+      formHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+      formHtml += formField('Amount ($)', '<input type="number" id="expAmount" value="" min="0" step="0.01" class="wi-input" placeholder="0.00">');
+      formHtml += formField('Tax Rate', '<select id="expTaxRate" class="wi-input"><option value="0">No Tax</option><option value="0.0825">8.25% TX Sales Tax</option></select>');
+      formHtml += '</div>';
+      formHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+      formHtml += formField('Expense Date', '<input type="date" id="expDate" class="wi-input">');
+      formHtml += formField('Due Date', '<input type="date" id="expDue" class="wi-input">');
+      formHtml += '</div>';
+      formHtml += formField('Well (optional)', '<select id="expWell" class="wi-input">' + wellOptions + '</select>');
+      formHtml += formField('Notes', '<textarea id="expNotes" rows="2" class="wi-input" placeholder="Optional notes..."></textarea>');
+      formHtml += formField('Receipt Photo', '<div id="receiptUploadArea" style="border:2px dashed rgba(0,212,255,0.3);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:border-color 0.2s">' +
+        '<input type="file" id="expReceipt" accept="image/*,application/pdf" capture="environment" style="display:none">' +
+        '<div id="receiptPreviewWrap" style="display:none;margin-bottom:8px"><img id="receiptPreview" style="max-width:100%;max-height:150px;border-radius:6px;object-fit:contain" alt="Receipt preview"></div>' +
+        '<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--cyan);margin-bottom:4px" id="receiptUploadIcon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+        '<p id="receiptUploadText" style="font-size:0.8rem;color:var(--white-dim);margin:0">Tap to take a photo or choose a file</p>' +
+        '</div>');
+      formHtml += '</div>';
+
+      formHtml += '<div style="margin-top:16px;padding:16px;border-radius:8px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2)">';
+      formHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--white-dim)">Subtotal:</span><span id="expSubtotal" style="color:var(--white)">$0.00</span></div>';
+      formHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--white-dim)">Tax:</span><span id="expTax" style="color:var(--white)">$0.00</span></div>';
+      formHtml += '<div style="display:flex;justify-content:space-between;font-weight:700"><span style="color:var(--cyan)">Total:</span><span id="expTotal" style="color:var(--cyan)">$0.00</span></div>';
+      formHtml += '</div>';
+
+      formHtml += '<div style="display:flex;gap:12px;margin-top:24px">';
+      formHtml += '<button id="btnCreateExpense" class="btn-primary" style="flex:1">Create Expense</button>';
+      formHtml += '<button id="btnCancelExpense" class="btn-outline" style="flex:0">Cancel</button>';
+      formHtml += '</div>';
+      formHtml += '</div>';
+
+      overlay.innerHTML = formHtml;
+      document.body.appendChild(overlay);
+
+      document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+
+      function updateTotals() {
+        var amount = parseFloat(document.getElementById('expAmount').value) || 0;
+        var taxRate = parseFloat(document.getElementById('expTaxRate').value) || 0;
+        var tax = amount * taxRate;
+        document.getElementById('expSubtotal').textContent = '$' + formatMoney(amount);
+        document.getElementById('expTax').textContent = '$' + formatMoney(tax);
+        document.getElementById('expTotal').textContent = '$' + formatMoney(amount + tax);
+      }
+      document.getElementById('expAmount').addEventListener('input', updateTotals);
+      document.getElementById('expTaxRate').addEventListener('change', updateTotals);
+
+      // Receipt upload area
+      var receiptFile = null;
+      var uploadArea = document.getElementById('receiptUploadArea');
+      var fileInput = document.getElementById('expReceipt');
+      uploadArea.addEventListener('click', function() { fileInput.click(); });
+      uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.style.borderColor = 'var(--cyan)'; });
+      uploadArea.addEventListener('dragleave', function() { uploadArea.style.borderColor = 'rgba(0,212,255,0.3)'; });
+      uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.style.borderColor = 'rgba(0,212,255,0.3)';
+        if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }
+      });
+      fileInput.addEventListener('change', function() {
+        receiptFile = this.files[0] || null;
+        if (receiptFile) {
+          document.getElementById('receiptUploadText').textContent = receiptFile.name + ' (' + (receiptFile.size / 1024).toFixed(0) + ' KB)';
+          document.getElementById('receiptUploadIcon').style.display = 'none';
+          if (receiptFile.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              document.getElementById('receiptPreview').src = e.target.result;
+              document.getElementById('receiptPreviewWrap').style.display = 'block';
+            };
+            reader.readAsDataURL(receiptFile);
+          } else {
+            document.getElementById('receiptPreviewWrap').style.display = 'none';
+          }
+        }
+      });
+
+      function closeModal() { document.body.removeChild(overlay); }
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('btnCancelExpense').addEventListener('click', closeModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+
+      document.getElementById('btnCreateExpense').addEventListener('click', async function() {
+        var vendor = document.getElementById('expVendor').value.trim();
+        if (!vendor) { c.showToast('Vendor name is required', 'error'); return; }
+        var amount = parseFloat(document.getElementById('expAmount').value);
+        if (!amount || amount <= 0) { c.showToast('Valid amount is required', 'error'); return; }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        try {
+          var receiptUrl = undefined;
+          if (receiptFile) {
+            btn.textContent = 'Uploading receipt...';
+            var uploadRes = await bgat.api.apiUpload('/api/v1/receipts/upload', receiptFile);
+            receiptUrl = uploadRes.receipt_url;
+          }
+          btn.textContent = 'Creating...';
+          await apiPost('/api/v1/expenses', {
+            vendor_name: vendor,
+            vendor_email: document.getElementById('expEmail').value.trim() || undefined,
+            category: document.getElementById('expCategory').value,
+            description: document.getElementById('expDesc').value.trim() || undefined,
+            amount: amount,
+            tax_rate: parseFloat(document.getElementById('expTaxRate').value) || 0,
+            expense_date: document.getElementById('expDate').value || undefined,
+            due_date: document.getElementById('expDue').value || undefined,
+            well_id: document.getElementById('expWell').value || undefined,
+            receipt_url: receiptUrl,
+            notes: document.getElementById('expNotes').value.trim() || undefined
+          });
+          c.showToast('Expense created', 'success');
+          closeModal();
+          loadExpenses();
+        } catch(e) {
+          c.showToast('Error: ' + e.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Create Expense';
+        }
+      });
+    }
+
+    window.approveExpense = async function(id) {
+      try {
+        await bgat.api.apiFetch('/api/v1/expenses/' + id, {
+          method: 'PATCH', body: JSON.stringify({ status: 'approved' })
+        });
+        c.showToast('Expense approved', 'success');
+        loadExpenses();
+      } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+    };
+
+    window.markExpensePaid = async function(id) {
+      try {
+        await bgat.api.apiFetch('/api/v1/expenses/' + id, {
+          method: 'PATCH', body: JSON.stringify({ status: 'paid', paid_date: new Date().toISOString() })
+        });
+        c.showToast('Expense marked paid', 'success');
+        loadExpenses();
+      } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+    };
+
+    window.deleteExpense = async function(id) {
+      if (!confirm('Delete this expense?')) return;
+      try {
+        await bgat.api.apiFetch('/api/v1/expenses/' + id, { method: 'DELETE' });
+        c.showToast('Expense deleted', 'success');
+        loadExpenses();
+      } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+    };
+
+    // ── Scan Receipt Modal (quick scan → creates expense) ──────────────
+    function showScanReceiptModal() {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px';
+
+      var html = '<div class="glass-card" style="padding:32px;max-width:480px;width:100%;text-align:center">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">';
+      html += '<h2 style="font-family:var(--font-heading);color:#a78bfa;margin:0">Scan Receipt</h2>';
+      html += '<button id="closeScanModal" style="background:none;border:none;color:var(--white-dim);font-size:1.5rem;cursor:pointer">&times;</button>';
+      html += '</div>';
+
+      html += '<div id="scanDropArea" style="border:2px dashed rgba(139,92,246,0.4);border-radius:12px;padding:32px;cursor:pointer;transition:all 0.2s;margin-bottom:20px">';
+      html += '<input type="file" id="scanFileInput" accept="image/*,application/pdf" capture="environment" style="display:none">';
+      html += '<svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="#a78bfa" stroke-width="1.5" style="margin-bottom:12px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+      html += '<p style="color:var(--white);font-size:1rem;margin:0 0 4px">Tap to open camera</p>';
+      html += '<p style="color:var(--white-dim);font-size:0.8rem;margin:0">or drag & drop a receipt image</p>';
+      html += '<div id="scanPreviewWrap" style="display:none;margin-top:16px"><img id="scanPreview" style="max-width:100%;max-height:200px;border-radius:8px;object-fit:contain" alt=""></div>';
+      html += '<p id="scanFileName" style="display:none;color:#a78bfa;font-size:0.8rem;margin-top:8px"></p>';
+      html += '</div>';
+
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;text-align:left">';
+      html += formField('Vendor', '<input type="text" id="scanVendor" placeholder="Vendor name" class="wi-input">');
+      html += formField('Amount ($)', '<input type="number" id="scanAmount" placeholder="0.00" min="0" step="0.01" class="wi-input">');
+      html += '</div>';
+      html += '<div style="text-align:left;margin-bottom:16px">';
+      html += formField('Category', '<select id="scanCategory" class="wi-input"><option value="operating">Operating</option><option value="fuel">Fuel</option><option value="supplies">Supplies</option><option value="travel" selected>Travel</option><option value="equipment">Equipment</option><option value="maintenance">Maintenance</option><option value="other">Other</option></select>');
+      html += '</div>';
+
+      html += '<button id="btnSubmitScan" class="btn-primary" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#a78bfa)" disabled>Upload & Create Expense</button>';
+      html += '</div>';
+
+      overlay.innerHTML = html;
+      document.body.appendChild(overlay);
+
+      var scanFile = null;
+      var dropArea = document.getElementById('scanDropArea');
+      var scanInput = document.getElementById('scanFileInput');
+
+      dropArea.addEventListener('click', function() { scanInput.click(); });
+      dropArea.addEventListener('dragover', function(e) { e.preventDefault(); dropArea.style.borderColor = '#a78bfa'; });
+      dropArea.addEventListener('dragleave', function() { dropArea.style.borderColor = 'rgba(139,92,246,0.4)'; });
+      dropArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropArea.style.borderColor = 'rgba(139,92,246,0.4)';
+        if (e.dataTransfer.files.length) { scanInput.files = e.dataTransfer.files; scanInput.dispatchEvent(new Event('change')); }
+      });
+
+      scanInput.addEventListener('change', function() {
+        scanFile = this.files[0] || null;
+        if (scanFile) {
+          document.getElementById('scanFileName').textContent = scanFile.name + ' (' + (scanFile.size / 1024).toFixed(0) + ' KB)';
+          document.getElementById('scanFileName').style.display = 'block';
+          document.getElementById('btnSubmitScan').disabled = false;
+          if (scanFile.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              document.getElementById('scanPreview').src = e.target.result;
+              document.getElementById('scanPreviewWrap').style.display = 'block';
+            };
+            reader.readAsDataURL(scanFile);
+          }
+        }
+      });
+
+      function closeModal() { document.body.removeChild(overlay); }
+      document.getElementById('closeScanModal').addEventListener('click', closeModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+
+      document.getElementById('btnSubmitScan').addEventListener('click', async function() {
+        if (!scanFile) { c.showToast('Please scan or select a receipt', 'error'); return; }
+        var vendor = document.getElementById('scanVendor').value.trim() || 'Unknown Vendor';
+        var amount = parseFloat(document.getElementById('scanAmount').value) || 0;
+        if (amount <= 0) { c.showToast('Enter the receipt amount', 'error'); return; }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Uploading receipt...';
+
+        try {
+          var uploadRes = await bgat.api.apiUpload('/api/v1/receipts/upload', scanFile);
+          btn.textContent = 'Creating expense...';
+          await apiPost('/api/v1/expenses', {
+            vendor_name: vendor,
+            category: document.getElementById('scanCategory').value,
+            description: 'Scanned receipt — ' + scanFile.name,
+            amount: amount,
+            tax_rate: 0.0825,
+            expense_date: new Date().toISOString().split('T')[0],
+            receipt_url: uploadRes.receipt_url
+          });
+          c.showToast('Receipt scanned & expense created!', 'success');
+          closeModal();
+          loadExpenses();
+        } catch(e) {
+          c.showToast('Error: ' + e.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Upload & Create Expense';
+        }
+      });
+    }
+
+    // ── View receipt in overlay ───────────────────────────────────────
+    window.viewReceipt = function(url) {
+      var fullUrl = (window.BGAT_API_URL || 'https://bgat-api-gateway.bmcii1976.workers.dev') + url;
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:1100;display:flex;align-items:center;justify-content:center;padding:24px;cursor:pointer';
+      overlay.innerHTML = '<div style="position:relative;max-width:90vw;max-height:90vh">' +
+        '<img src="' + c.escapeHtml(fullUrl) + '" style="max-width:100%;max-height:85vh;border-radius:8px;object-fit:contain" alt="Receipt">' +
+        '<div style="text-align:center;margin-top:12px"><a href="' + c.escapeHtml(fullUrl) + '" target="_blank" rel="noopener" style="color:#a78bfa;font-size:0.8rem;text-decoration:underline" onclick="event.stopPropagation()">Open in new tab</a></div>' +
+        '</div>';
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });
+      document.body.appendChild(overlay);
+    };
+
+    // ── Upload receipt to existing expense ────────────────────────────
+    window.uploadReceiptToExpense = function(expenseId) {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,application/pdf';
+      input.capture = 'environment';
+      input.onchange = async function() {
+        var file = this.files[0];
+        if (!file) return;
+        try {
+          c.showToast('Uploading receipt...', 'info');
+          var form = new FormData();
+          form.append('file', file);
+          form.append('expense_id', expenseId);
+          var token = localStorage.getItem('bgat_token');
+          var headers = {};
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          var res = await fetch((window.BGAT_API_URL || 'https://bgat-api-gateway.bmcii1976.workers.dev') + '/api/v1/receipts/upload', {
+            method: 'POST', headers: headers, body: form
+          });
+          if (!res.ok) throw new Error('Upload failed');
+          c.showToast('Receipt attached!', 'success');
+          loadExpenses();
+        } catch(e) { c.showToast('Error: ' + e.message, 'error'); }
+      };
+      input.click();
+    };
+
+    // Helpers
+    var ICONS = {
+      dollar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+      paid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+    };
+
+    function formatMoney(n) { return (n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div><div class="stat-card-label">' + label + '</div><div class="stat-card-value">' + value + '</div></div>';
+    }
+
+    function statusBadge(status) {
+      var colors = { pending: '#f59e0b', approved: '#3b82f6', paid: '#22c55e', void: '#6b7280' };
+      var color = colors[status] || '#94a3b8';
+      return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.7rem;font-family:var(--font-heading);text-transform:uppercase;letter-spacing:1px;background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + (status || 'unknown') + '</span>';
+    }
+
+    function categoryBadge(cat) {
+      return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.7rem;background:rgba(0,212,255,0.15);color:var(--cyan);border:1px solid rgba(0,212,255,0.25)">' + (cat || 'other').replace(/_/g, ' ') + '</span>';
+    }
+
+    function receiptBadge(url, expenseId) {
+      if (url) {
+        return '<button onclick="viewReceipt(\'' + c.escapeHtml(url) + '\')" style="background:none;border:none;cursor:pointer;padding:2px" title="View receipt">' +
+          '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#22c55e" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+          '</button>';
+      }
+      return '<button onclick="uploadReceiptToExpense(\'' + expenseId + '\')" style="background:none;border:none;cursor:pointer;padding:2px;opacity:0.4" title="Attach receipt">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+        '</button>';
+    }
+
+    function qbBadge(status) {
+      if (status === 'synced') return '<span style="color:#22c55e;font-size:0.75rem">✓ Synced</span>';
+      if (status === 'error') return '<span style="color:#ef4444;font-size:0.75rem">✗ Error</span>';
+      return '<span style="color:#94a3b8;font-size:0.75rem">○ Pending</span>';
+    }
+
+    function formField(label, inputHtml) {
+      return '<div><label style="display:block;font-family:var(--font-heading);font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--white-dim);margin-bottom:4px">' + label + '</label>' + inputHtml + '</div>';
+    }
+  })();
+  </script>
+</body>
+</html>

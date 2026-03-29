@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Not Found — Aqua Pulse</title>
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --deep: #060d1a; --surface: #0c1829; --cyan: #00d4ff; --cyan-light: #5be5ff;
+  --teal: #14b8a6; --white: #e2edf6; --white-dim: #7a99b8;
+  --font-display: 'Outfit', sans-serif; --font-body: 'Inter', sans-serif;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-body); background: var(--deep); color: var(--white);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  text-align: center; position: relative; overflow: hidden;
+}
+body::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(0,212,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+.container { max-width: 600px; padding: 40px 24px; position: relative; z-index: 1; }
+.code {
+  font-family: var(--font-display); font-size: clamp(5rem, 15vw, 8rem); font-weight: 800;
+  background: linear-gradient(135deg, var(--cyan), var(--teal));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; line-height: 1; margin-bottom: 16px;
+  filter: drop-shadow(0 0 30px rgba(0,212,255,0.3));
+}
+h2 {
+  font-family: var(--font-display); font-size: 1.1rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 3px; color: var(--white-dim); margin-bottom: 24px;
+}
+p { font-size: 1.05rem; color: var(--white-dim); line-height: 1.7; margin-bottom: 32px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; padding: 14px 32px;
+  background: linear-gradient(135deg, var(--cyan), var(--teal)); color: var(--deep);
+  font-family: var(--font-display); font-size: 0.85rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 2px; text-decoration: none;
+  border-radius: 8px; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,212,255,0.35);
+}
+.orb {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; pointer-events: none;
+}
+.orb-1 { width: 300px; height: 300px; background: var(--cyan); top: -100px; right: -80px; }
+.orb-2 { width: 200px; height: 200px; background: var(--teal); bottom: -60px; left: -40px; }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="container">
+  <div class="code">404</div>
+  <h2>Page Not Found</h2>
+  <p>The page you're looking for doesn't exist or has been moved. Head back to the homepage or contact us if you need help.</p>
+  <a href="/" class="btn">Back to Homepage</a>
+</div>
+</body>
+</html>

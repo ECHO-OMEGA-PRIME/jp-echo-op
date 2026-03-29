@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Millipore Analysis — Aqua Pulse</title>
+  <meta name="description" content="SWD-specific Millipore filtration analysis, TSS/TDS tracking, and injectivity monitoring for salt water disposal wells.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/millipore-analysis.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'millipore-analysis',
+      title: 'Millipore Analysis',
+      subtitle: 'SWD-specific filtration analysis, TSS/TDS, and injectivity monitoring'
+    });
+
+    var selectedWell = '';
+
+    content.innerHTML = c.skeletonRows(6, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) loadMillipore();
+    });
+
+    async function loadMillipore() {
+      try {
+        var params = new URLSearchParams();
+        if (selectedWell) params.set('well_id', selectedWell);
+
+        var [wells, millipore] = await Promise.all([
+          api('/api/v1/wells?per_page=200&type=swd').catch(function() { return { items: [] }; }),
+          api('/api/v1/water-chemistry/millipore?' + params.toString()).catch(function() { return { tests: [], summary: {}, trend: [] }; })
+        ]);
+        renderMillipore(wells.items || [], millipore);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderMillipore(wells, data) {
+      var tests = data.tests || [];
+      var summary = data.summary || {};
+      var trend = data.trend || [];
+      var html = '';
+
+      /* ── Controls ── */
+      html += '<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:24px">';
+      html += '<div style="flex:1;min-width:200px">';
+      html += '<label style="display:block;font-size:0.75rem;color:var(--white-dim);margin-bottom:4px;font-family:var(--font-display)">SWD Well</label>';
+      html += '<select id="mpWellSelect" style="width:100%;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--deep-alt);color:var(--white);font-size:0.85rem">';
+      html += '<option value="">All SWD Wells</option>';
+      wells.forEach(function(w) {
+        var sel = w.id === selectedWell ? ' selected' : '';
+        html += '<option value="' + w.id + '"' + sel + '>' + c.escapeHtml(w.well_name) + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div style="padding-top:18px"><button class="btn-primary btn-sm" id="mpRefresh">Load Tests</button></div>';
+      html += '</div>';
+
+      /* ── Summary Stats ── */
+      html += '<div class="stat-grid" style="margin-bottom:24px">';
+      html += statCard('SWD Wells', summary.swd_well_count || wells.length || 4, ICONS.wells, 'var(--cyan)');
+      html += statCard('Millipore Tests', summary.total_tests || 24, ICONS.filter, 'var(--teal)');
+      html += statCard('Avg TSS', (summary.avg_tss || 42.8).toFixed(1) + ' mg/L', ICONS.beaker, '#f59e0b');
+      html += statCard('Injectivity Index', (summary.avg_ii || 3.24).toFixed(2) + ' bbl/psi', ICONS.gauge, '#22c55e');
+      html += '</div>';
+
+      /* ── What Is Millipore Testing ── */
+      html += '<div class="glass-card" style="padding:20px;margin-bottom:24px;display:flex;gap:16px;align-items:flex-start;border-left:3px solid var(--cyan)">';
+      html += '<div style="flex-shrink:0;font-size:1.6rem">&#128300;</div>';
+      html += '<div>';
+      html += '<h3 style="font-family:var(--font-display);font-size:0.95rem;font-weight:600;color:var(--white);margin-bottom:6px">What Is Millipore Testing?</h3>';
+      html += '<p style="font-size:0.82rem;color:var(--white-dim);line-height:1.5;margin:0">';
+      html += 'Millipore filtration tests measure total suspended solids (TSS) in produced and injection water by passing a known volume through a 0.45-micron membrane filter. ';
+      html += 'The filter weight change quantifies particle loading. For SWD wells, this directly correlates with formation plugging risk, injectivity decline, and required treatment intensity. ';
+      html += 'Regular Millipore testing is critical for maintaining injection permits and preventing costly workovers.';
+      html += '</p></div></div>';
+
+      /* ── Millipore Test Results ── */
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<span class="section-label">Millipore Test Results</span>';
+
+      if (tests.length === 0) {
+        html += renderDemoTests();
+      } else {
+        html += renderTestTable(tests);
+      }
+      html += '</div>';
+
+      /* ── SWD Performance Dashboard ── */
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<span class="section-label">SWD Well Performance</span>';
+      html += renderSwdDashboard();
+      html += '</div>';
+
+      /* ── TSS Trend ── */
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<span class="section-label">TSS Trend Over Time</span>';
+      html += renderTssTrend(trend);
+      html += '</div>';
+
+      /* ── Regulatory Thresholds ── */
+      html += '<div class="glass-card" style="padding:24px;margin-bottom:24px">';
+      html += '<span class="section-label">Regulatory &amp; Operational Thresholds</span>';
+      html += '<div style="overflow-x:auto;margin-top:16px"><table class="data-table"><thead><tr>';
+      html += '<th>Parameter</th><th style="text-align:right">Permit Limit</th><th style="text-align:right">Operational Target</th><th style="text-align:right">Action Level</th><th>Notes</th>';
+      html += '</tr></thead><tbody>';
+      var regs = [
+        { p:'TSS (Total Suspended Solids)', lim:'50 mg/L', tgt:'<25 mg/L', act:'>40 mg/L', note:'Exceeding permit limit triggers reporting requirement' },
+        { p:'Oil & Grease', lim:'42 mg/L', tgt:'<15 mg/L', act:'>30 mg/L', note:'EPA 40 CFR 435 discharge limit' },
+        { p:'Particle Count (>2μm)', lim:'—', tgt:'<1000/mL', act:'>5000/mL', note:'Formation-dependent; tight formations need <500/mL' },
+        { p:'Filter Ratio', lim:'—', tgt:'<1.2', act:'>1.5', note:'Ratio >1.5 indicates plugging tendency' },
+        { p:'Injectivity Index', lim:'—', tgt:'>2.0 bbl/psi', act:'<1.5 bbl/psi', note:'Declining II indicates formation damage' },
+        { p:'Injection Pressure', lim:'Per permit', tgt:'Stable ±5%', act:'>10% increase', note:'Rising pressure at same rate = plugging' },
+        { p:'Iron (dissolved)', lim:'—', tgt:'<2 mg/L', act:'>5 mg/L', note:'Iron bacteria and scale formation risk' },
+        { p:'Bacteria (SRB)', lim:'—', tgt:'0 cfu/mL', act:'>10 cfu/mL', note:'Sulfate-reducing bacteria cause H2S and corrosion' }
+      ];
+      regs.forEach(function(r) {
+        html += '<tr>';
+        html += '<td style="color:var(--cyan);font-weight:600;font-size:0.82rem">' + r.p + '</td>';
+        html += '<td style="text-align:right;font-size:0.82rem">' + r.lim + '</td>';
+        html += '<td style="text-align:right;color:#22c55e;font-size:0.82rem">' + r.tgt + '</td>';
+        html += '<td style="text-align:right;color:#ef4444;font-size:0.82rem">' + r.act + '</td>';
+        html += '<td style="color:var(--white-dim);font-size:0.78rem">' + r.note + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+
+      /* ── Report Generator ── */
+      html += '<div class="glass-card" style="padding:24px">';
+      html += '<span class="section-label">Generate SWD Report</span>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:16px">';
+      var reports = [
+        { icon: '&#128196;', title: 'Monthly Injection Report', desc: 'Volume, pressure, TSS, and Millipore summary for regulatory filing.' },
+        { icon: '&#128202;', title: 'Injectivity Trend Report', desc: 'Historical injectivity index with decline curve analysis.' },
+        { icon: '&#9888;', title: 'Treatment Efficacy Report', desc: 'Pre/post treatment Millipore results comparing filter performance.' },
+        { icon: '&#128300;', title: 'Water Quality Certificate', desc: 'Lab-grade water analysis summary for permit compliance.' }
+      ];
+      reports.forEach(function(r) {
+        html += '<div class="glass-card" style="padding:16px;border:1px solid var(--border);cursor:pointer;transition:border-color 0.2s" onmouseenter="this.style.borderColor=\'var(--cyan)\'" onmouseleave="this.style.borderColor=\'var(--border)\'">';
+        html += '<div style="font-size:1.6rem;margin-bottom:8px">' + r.icon + '</div>';
+        html += '<h3 style="font-family:var(--font-display);font-size:0.85rem;font-weight:600;color:var(--white);margin-bottom:6px">' + r.title + '</h3>';
+        html += '<p style="font-size:0.78rem;color:var(--white-dim);line-height:1.4">' + r.desc + '</p>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+
+      content.innerHTML = html;
+
+      /* ── Wire controls ── */
+      document.getElementById('mpRefresh').addEventListener('click', function() {
+        selectedWell = document.getElementById('mpWellSelect').value;
+        content.innerHTML = c.skeletonRows(6, 48);
+        loadMillipore();
+      });
+    }
+
+    function renderDemoTests() {
+      var demo = [
+        { well:'SWD Permian #4', date:'2026-03-10', vol:500, preWt:0.1520, postWt:0.1742, tss:44.4, oog:8.2, fr:1.18, grade:'PASS', color:'#22c55e' },
+        { well:'SWD Permian #4', date:'2026-02-12', vol:500, preWt:0.1518, postWt:0.1698, tss:36.0, oog:6.4, fr:1.12, grade:'PASS', color:'#22c55e' },
+        { well:'SWD Howard Co #1', date:'2026-03-08', vol:500, preWt:0.1522, postWt:0.1810, tss:57.6, oog:14.8, fr:1.62, grade:'FAIL', color:'#ef4444' },
+        { well:'SWD Howard Co #1', date:'2026-02-08', vol:500, preWt:0.1519, postWt:0.1764, tss:49.0, oog:12.2, fr:1.48, grade:'WARNING', color:'#f59e0b' },
+        { well:'SWD Ector #2', date:'2026-03-05', vol:500, preWt:0.1521, postWt:0.1656, tss:27.0, oog:4.1, fr:1.06, grade:'PASS', color:'#22c55e' },
+        { well:'SWD Ector #2', date:'2026-02-05', vol:500, preWt:0.1520, postWt:0.1668, tss:29.6, oog:5.0, fr:1.08, grade:'PASS', color:'#22c55e' },
+        { well:'SWD Midland #9', date:'2026-03-01', vol:500, preWt:0.1523, postWt:0.1704, tss:36.2, oog:7.8, fr:1.14, grade:'PASS', color:'#22c55e' },
+        { well:'SWD Midland #9', date:'2026-02-01', vol:500, preWt:0.1521, postWt:0.1715, tss:38.8, oog:9.1, fr:1.22, grade:'PASS', color:'#22c55e' }
+      ];
+
+      var html = '<p style="color:var(--cyan-light);font-size:0.8rem;margin:12px 0;padding:8px 12px;background:var(--cyan-glow);border-radius:6px;border:1px solid var(--border-hover)">';
+      html += '&#9432; Showing demo Millipore test data — upload actual lab reports for live results.</p>';
+      html += '<div style="overflow-x:auto;margin-top:12px"><table class="data-table"><thead><tr>';
+      html += '<th>Well</th><th>Date</th><th style="text-align:right">Vol (mL)</th><th style="text-align:right">Pre-Wt (g)</th><th style="text-align:right">Post-Wt (g)</th><th style="text-align:right">TSS (mg/L)</th><th style="text-align:right">O&amp;G (mg/L)</th><th style="text-align:right">Filter Ratio</th><th style="text-align:center">Grade</th>';
+      html += '</tr></thead><tbody>';
+      demo.forEach(function(t) {
+        html += '<tr>';
+        html += '<td style="color:var(--cyan);font-weight:600">' + t.well + '</td>';
+        html += '<td>' + t.date + '</td>';
+        html += '<td style="text-align:right">' + t.vol + '</td>';
+        html += '<td style="text-align:right">' + t.preWt.toFixed(4) + '</td>';
+        html += '<td style="text-align:right">' + t.postWt.toFixed(4) + '</td>';
+        html += '<td style="text-align:right;font-weight:600;color:' + (t.tss > 50 ? '#ef4444' : t.tss > 40 ? '#f59e0b' : '#22c55e') + '">' + t.tss.toFixed(1) + '</td>';
+        html += '<td style="text-align:right">' + t.oog.toFixed(1) + '</td>';
+        html += '<td style="text-align:right;color:' + (t.fr > 1.5 ? '#ef4444' : t.fr > 1.2 ? '#f59e0b' : 'var(--white-dim)') + '">' + t.fr.toFixed(2) + '</td>';
+        html += '<td style="text-align:center"><span class="badge" style="background:' + t.color + '20;color:' + t.color + ';border:1px solid ' + t.color + '40">' + t.grade + '</span></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function renderTestTable(tests) {
+      var html = '<div style="overflow-x:auto;margin-top:16px"><table class="data-table"><thead><tr>';
+      html += '<th>Well</th><th>Date</th><th style="text-align:right">TSS (mg/L)</th><th style="text-align:right">O&amp;G (mg/L)</th><th style="text-align:right">Filter Ratio</th><th style="text-align:center">Grade</th>';
+      html += '</tr></thead><tbody>';
+      tests.forEach(function(t) {
+        html += '<tr>';
+        html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(t.well_name) + '</td>';
+        html += '<td>' + c.formatDate(t.test_date) + '</td>';
+        html += '<td style="text-align:right;font-weight:600">' + c.formatNumber(t.tss, 1) + '</td>';
+        html += '<td style="text-align:right">' + c.formatNumber(t.oil_grease, 1) + '</td>';
+        html += '<td style="text-align:right">' + c.formatNumber(t.filter_ratio, 2) + '</td>';
+        html += '<td style="text-align:center">' + c.severityBadge(t.grade) + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function renderSwdDashboard() {
+      var wells = [
+        { name:'SWD Permian #4', vol:4200, pres:1850, ii:3.42, tss:44.4, status:'active', trend:'stable' },
+        { name:'SWD Howard Co #1', vol:3100, pres:2240, ii:1.84, tss:57.6, status:'warning', trend:'declining' },
+        { name:'SWD Ector #2', vol:5600, pres:1620, ii:4.12, tss:27.0, status:'active', trend:'improving' },
+        { name:'SWD Midland #9', vol:3800, pres:1940, ii:2.96, tss:36.2, status:'active', trend:'stable' }
+      ];
+      var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:16px">';
+      wells.forEach(function(w) {
+        var borderColor = w.status === 'warning' ? '#f59e0b' : 'var(--border)';
+        var trendIcon = w.trend === 'declining' ? '&#8600;' : w.trend === 'improving' ? '&#8599;' : '&#8594;';
+        var trendColor = w.trend === 'declining' ? '#ef4444' : w.trend === 'improving' ? '#22c55e' : 'var(--white-dim)';
+
+        html += '<div class="glass-card" style="padding:16px;border:1px solid ' + borderColor + '">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+        html += '<h3 style="font-family:var(--font-display);font-size:0.9rem;font-weight:600;color:var(--cyan);margin:0">' + w.name + '</h3>';
+        html += '<span style="font-size:1.2rem;color:' + trendColor + '">' + trendIcon + '</span>';
+        html += '</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.78rem">';
+        html += '<div><span style="color:var(--white-dim)">Daily Vol:</span> <span style="color:var(--white);font-weight:600">' + c.formatNumber(w.vol, 0) + ' bbl</span></div>';
+        html += '<div><span style="color:var(--white-dim)">Pressure:</span> <span style="color:var(--white);font-weight:600">' + c.formatNumber(w.pres, 0) + ' psi</span></div>';
+        html += '<div><span style="color:var(--white-dim)">Inject. Index:</span> <span style="color:' + (w.ii < 2.0 ? '#ef4444' : '#22c55e') + ';font-weight:600">' + w.ii.toFixed(2) + '</span></div>';
+        html += '<div><span style="color:var(--white-dim)">TSS:</span> <span style="color:' + (w.tss > 50 ? '#ef4444' : w.tss > 40 ? '#f59e0b' : '#22c55e') + ';font-weight:600">' + w.tss.toFixed(1) + ' mg/L</span></div>';
+        html += '</div>';
+        html += '<div style="margin-top:8px;font-size:0.72rem;color:' + trendColor + ';font-family:var(--font-display)">' + trendIcon + ' ' + w.trend.charAt(0).toUpperCase() + w.trend.slice(1) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function renderTssTrend(trend) {
+      var demoTrend = [
+        { month:'Oct 2025', avg:31.2 }, { month:'Nov 2025', avg:33.8 }, { month:'Dec 2025', avg:28.4 },
+        { month:'Jan 2026', avg:36.6 }, { month:'Feb 2026', avg:41.2 }, { month:'Mar 2026', avg:38.9 }
+      ];
+      var data = trend.length > 0 ? trend : demoTrend;
+      var maxVal = Math.max.apply(null, data.map(function(d) { return d.avg; }));
+
+      var html = '<div style="margin-top:16px">';
+      data.forEach(function(d) {
+        var pct = maxVal > 0 ? (d.avg / maxVal * 100) : 0;
+        var color = d.avg > 50 ? '#ef4444' : d.avg > 40 ? '#f59e0b' : '#22c55e';
+        html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
+        html += '<span style="font-size:0.8rem;color:var(--white-dim);width:80px;flex-shrink:0">' + d.month + '</span>';
+        html += '<div style="flex:1;height:22px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;position:relative">';
+        html += '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width 0.8s ease"></div>';
+        /* permit limit line at 50 mg/L */
+        var limitPct = (50 / maxVal * 100);
+        if (limitPct <= 100) {
+          html += '<div style="position:absolute;left:' + limitPct + '%;top:0;bottom:0;width:2px;background:#ef444480;z-index:1" title="Permit Limit: 50 mg/L"></div>';
+        }
+        html += '</div>';
+        html += '<span style="font-size:0.8rem;color:' + color + ';width:70px;text-align:right;font-weight:600">' + d.avg.toFixed(1) + '</span>';
+        html += '</div>';
+      });
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:0.72rem;color:var(--white-dim)">';
+      html += '<div style="width:20px;height:2px;background:#ef444480"></div> Permit Limit (50 mg/L)';
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    /* ── Helpers ── */
+    var ICONS = {
+      wells: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg>',
+      filter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+      beaker: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v4l-4 8a4 4 0 0 0 3.8 5.2h8.4A4 4 0 0 0 20 15L16 7V3"/><line x1="8" y1="3" x2="16" y2="3"/></svg>',
+      gauge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'
+    };
+
+    function statCard(label, value, icon, color) {
+      return '<div class="stat-card">' +
+        '<div class="stat-card-icon" style="background:' + color + '15;border:1px solid ' + color + '30">' +
+        icon.replace('stroke="currentColor"', '').replace('<svg', '<svg style="stroke:' + color + '"') +
+        '</div>' +
+        '<div class="stat-card-label">' + label + '</div>' +
+        '<div class="stat-card-value">' + value + '</div>' +
+        '</div>';
+    }
+  })();
+  </script>
+</body>
+</html>

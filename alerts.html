@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alerts — Aqua Pulse</title>
+  <meta name="description" content="Variance detection and anomaly monitoring for Permian Basin water chemistry.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/alerts.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260316">
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260316"></script>
+  <script src="assets/js/auth.js?v=20260316"></script>
+  <script src="assets/js/common.js?v=20260316"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'alerts',
+      title: 'Alerts',
+      subtitle: 'Variance detection and anomaly monitoring'
+    });
+
+    var currentFilter = 'ALL';
+    var showAcknowledged = false;
+    var currentPage = 1;
+    var pollInterval = null;
+
+    content.innerHTML = c.skeletonRows(6, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) {
+        loadAlerts();
+        // Poll every 30s
+        pollInterval = setInterval(loadAlerts, 30000);
+      }
+    });
+
+    async function loadAlerts() {
+      try {
+        var params = new URLSearchParams();
+        if (currentFilter !== 'ALL') params.set('severity', currentFilter);
+        params.set('acknowledged', showAcknowledged);
+        params.set('page', currentPage);
+        params.set('per_page', 50);
+
+        var data = await api('/api/v1/alerts?' + params.toString());
+        renderAlerts(data);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderAlerts(data) {
+      var items = data.items || [];
+      var total = data.total || 0;
+      var html = '';
+
+      // Filters
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px">';
+      html += '<div class="filter-bar" style="margin-bottom:0">';
+      ['ALL', 'CRITICAL', 'WARNING', 'INFO'].forEach(function(f) {
+        html += '<button class="filter-chip' + (f === currentFilter ? ' active' : '') + '" onclick="wiFilterAlerts(\'' + f + '\')">' + f + '</button>';
+      });
+      html += '</div>';
+      html += '<label style="display:flex;align-items:center;gap:8px;font-family:var(--font-heading);font-size:0.75rem;color:var(--white-dim);cursor:pointer">';
+      html += '<input type="checkbox" id="showAckCheck" ' + (showAcknowledged ? 'checked' : '') + ' onchange="wiToggleAck()" style="accent-color:var(--cyan)"> Show Acknowledged';
+      html += '</label>';
+      html += '</div>';
+
+      // Count
+      html += '<p style="font-family:var(--font-heading);font-size:0.8rem;color:var(--white-dim);margin-bottom:16px">' + total + ' alerts</p>';
+
+      if (items.length === 0) {
+        html += '<div class="empty-state">' + c.ICONS.alerts + '<p>No alerts matching filters</p></div>';
+      } else {
+        html += '<div class="glass-card" style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Severity</th><th>Well</th><th>Rule</th><th>Type</th><th>Message</th><th>Date</th><th>Action</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach(function(a) {
+          var ackClass = a.acknowledged ? ' style="opacity:0.5"' : '';
+          html += '<tr' + ackClass + '>';
+          html += '<td>' + c.severityBadge(a.severity) + '</td>';
+          html += '<td><a href="well-detail.html?id=' + encodeURIComponent(a.well_id) + '" style="color:var(--cyan)">' +
+            c.escapeHtml(a.well_name || (a.well_id || '').slice(0, 8)) + '</a></td>';
+          html += '<td style="font-family:monospace;font-size:0.8rem">' + c.escapeHtml(a.ion_name) + '</td>';
+          html += '<td>' + c.escapeHtml(a.alert_type) + '</td>';
+          html += '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.escapeHtml(a.description) + '</td>';
+          html += '<td style="color:var(--white-dim);white-space:nowrap">' + c.formatDate(a.created_at) + '</td>';
+          html += '<td>';
+          if (!a.acknowledged) {
+            html += '<button class="btn-outline btn-sm" onclick="wiAckAlert(\'' + a.id + '\',event)">Acknowledge</button>';
+          } else {
+            html += '<span class="badge badge-success">ACK</span>';
+          }
+          html += '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    window.wiFilterAlerts = function(filter) {
+      currentFilter = filter;
+      currentPage = 1;
+      loadAlerts();
+    };
+
+    window.wiToggleAck = function() {
+      showAcknowledged = document.getElementById('showAckCheck').checked;
+      currentPage = 1;
+      loadAlerts();
+    };
+
+    window.wiAckAlert = async function(alertId, event) {
+      event.stopPropagation();
+      try {
+        await api('/api/v1/alerts/' + alertId + '/acknowledge', { method: 'PATCH' });
+        c.showToast('Alert acknowledged', 'success');
+        loadAlerts();
+      } catch(e) {
+        c.showToast('Failed: ' + e.message, 'error');
+      }
+    };
+  })();
+  </script>
+</body>
+</html>
