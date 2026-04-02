@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CWA Reports — Aqua Pulse</title>
+  <meta name="description" content="Completion and Workover Analysis reports with autonomous well location mapping.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/cwa-reports.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260402">
+  <style>
+    .cwa-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:16px; margin-bottom:24px; }
+    .cwa-stat { text-align:center; padding:20px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
+    .cwa-stat-val { font-size:1.8rem; font-weight:700; font-family:var(--font-heading); color:var(--cyan); }
+    .cwa-stat-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--white-dim); margin-top:4px; }
+    .cwa-filters { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+    .cwa-filters select { background:var(--surface-alt,rgba(255,255,255,0.05)); border:1px solid rgba(255,255,255,0.12); color:var(--white); padding:8px 12px; border-radius:6px; font-size:0.85rem; }
+    .cwa-filters select option { background:#0c1829; color:#e2edf6; }
+    .file-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+    .file-badge.pdf { background:rgba(239,68,68,0.15); color:#f87171; }
+    .file-badge.xls, .file-badge.xlsx, .file-badge.xlsm { background:rgba(34,197,94,0.15); color:#4ade80; }
+    .file-badge.rtf { background:rgba(99,102,241,0.15); color:#a5b4fc; }
+    .file-badge.doc { background:rgba(251,191,36,0.15); color:#fbbf24; }
+    .type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+    .type-badge.CWA { background:rgba(0,212,255,0.15); color:var(--cyan); }
+    .type-badge.WA { background:rgba(168,85,247,0.15); color:#c084fc; }
+    .type-badge.WASD { background:rgba(251,146,60,0.15); color:#fb923c; }
+    .formation-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.7rem; background:rgba(20,184,166,0.12); color:var(--teal,#14b8a6); }
+  </style>
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260402"></script>
+  <script src="assets/js/auth.js?v=20260402"></script>
+  <script src="assets/js/common.js?v=20260402"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'cwa-reports',
+      title: 'CWA Reports',
+      subtitle: 'Completion & Workover Analysis reports — 894 reports with autonomous well location mapping'
+    });
+
+    var currentPage = 1;
+    var perPage = 25;
+    var searchTerm = '';
+    var filterFormation = '';
+    var filterType = '';
+    var searchTimer = null;
+    var stats = null;
+
+    content.innerHTML = c.skeletonRows(8, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) {
+        loadStats();
+        loadReports();
+      }
+    });
+
+    async function loadStats() {
+      try {
+        stats = await api('/api/v1/cwa-reports/stats');
+      } catch(e) {
+        stats = { total: 0, by_type: [], by_formation: [], by_file_type: [] };
+      }
+    }
+
+    async function loadReports() {
+      try {
+        var params = new URLSearchParams();
+        params.set('page', currentPage);
+        params.set('per_page', perPage);
+        if (searchTerm) params.set('search', searchTerm);
+        if (filterFormation) params.set('formation', filterFormation);
+        if (filterType) params.set('report_type', filterType);
+
+        var data = await api('/api/v1/cwa-reports?' + params.toString());
+        renderReports(data);
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderReports(data) {
+      var items = data.items || [];
+      var total = data.total || 0;
+      var totalPages = Math.ceil(total / perPage);
+
+      var html = '';
+
+      // Stats cards
+      if (stats) {
+        html += '<div class="cwa-stats">';
+        html += '<div class="cwa-stat"><div class="cwa-stat-val">' + (stats.total || 0) + '</div><div class="cwa-stat-label">Total Reports</div></div>';
+        var pdfCount = 0, xlsCount = 0;
+        (stats.by_file_type || []).forEach(function(ft) {
+          if (ft.file_type === 'pdf') pdfCount = ft.count;
+          if (ft.file_type === 'xls' || ft.file_type === 'xlsx' || ft.file_type === 'xlsm') xlsCount += ft.count;
+        });
+        html += '<div class="cwa-stat"><div class="cwa-stat-val">' + pdfCount + '</div><div class="cwa-stat-label">PDF Reports</div></div>';
+        html += '<div class="cwa-stat"><div class="cwa-stat-val">' + xlsCount + '</div><div class="cwa-stat-label">Excel Reports</div></div>';
+        var formationCount = (stats.by_formation || []).length;
+        html += '<div class="cwa-stat"><div class="cwa-stat-val">' + formationCount + '</div><div class="cwa-stat-label">Formations</div></div>';
+        html += '</div>';
+      }
+
+      // Filters
+      html += '<div class="cwa-filters">';
+      html += '<div class="search-bar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+      html += '<input type="text" id="cwaSearch" placeholder="Search by well name or filename..." value="' + c.escapeHtml(searchTerm) + '"></div>';
+
+      // Formation filter
+      html += '<select id="cwaFormation"><option value="">All Formations</option>';
+      if (stats && stats.by_formation) {
+        stats.by_formation.forEach(function(f) {
+          var sel = filterFormation === f.formation ? ' selected' : '';
+          html += '<option value="' + c.escapeHtml(f.formation) + '"' + sel + '>' + c.escapeHtml(f.formation) + ' (' + f.count + ')</option>';
+        });
+      }
+      html += '</select>';
+
+      // Type filter
+      html += '<select id="cwaType"><option value="">All Types</option>';
+      if (stats && stats.by_type) {
+        stats.by_type.forEach(function(t) {
+          var sel = filterType === t.report_type ? ' selected' : '';
+          html += '<option value="' + c.escapeHtml(t.report_type) + '"' + sel + '>' + c.escapeHtml(t.report_type) + ' (' + t.count + ')</option>';
+        });
+      }
+      html += '</select>';
+
+      html += '<span style="font-family:var(--font-heading);font-size:0.8rem;color:var(--white-dim)">' + total + ' reports</span>';
+      html += '</div>';
+
+      // Table
+      if (items.length === 0) {
+        html += '<div class="empty-state"><p>No CWA reports found</p></div>';
+      } else {
+        html += '<div class="glass-card" style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += '<th>Well Name</th><th>Formation</th><th>Report Date</th><th>Type</th><th>Format</th><th>Filename</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach(function(r) {
+          html += '<tr>';
+          html += '<td style="color:var(--cyan);font-weight:600">' + c.escapeHtml(r.well_name_raw || '') + '</td>';
+          html += '<td>' + (r.formation ? '<span class="formation-tag">' + c.escapeHtml(r.formation) + '</span>' : '<span style="color:var(--white-dim)">--</span>') + '</td>';
+          html += '<td>' + c.escapeHtml(r.report_date || '--') + '</td>';
+          html += '<td><span class="type-badge ' + c.escapeHtml(r.report_type || '') + '">' + c.escapeHtml(r.report_type || 'CWA') + '</span></td>';
+          html += '<td><span class="file-badge ' + c.escapeHtml(r.file_type || '') + '">' + c.escapeHtml(r.file_type || '') + '</span></td>';
+          html += '<td style="font-size:0.8rem;color:var(--white-dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + c.escapeHtml(r.original_filename || '') + '">' + c.escapeHtml(r.original_filename || '') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+
+        // Pagination
+        if (totalPages > 1) {
+          html += '<div class="pagination">';
+          html += '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="wiCwaPage(' + (currentPage - 1) + ')">Prev</button>';
+          for (var p = 1; p <= Math.min(totalPages, 7); p++) {
+            html += '<button class="' + (p === currentPage ? 'active' : '') + '" onclick="wiCwaPage(' + p + ')">' + p + '</button>';
+          }
+          if (totalPages > 7) html += '<button disabled>...</button><button onclick="wiCwaPage(' + totalPages + ')">' + totalPages + '</button>';
+          html += '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="wiCwaPage(' + (currentPage + 1) + ')">Next</button>';
+          html += '</div>';
+        }
+      }
+
+      content.innerHTML = html;
+
+      // Bind events
+      var searchInput = document.getElementById('cwaSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(function() {
+            searchTerm = searchInput.value.trim();
+            currentPage = 1;
+            loadReports();
+          }, 400);
+        });
+      }
+      var formSelect = document.getElementById('cwaFormation');
+      if (formSelect) {
+        formSelect.addEventListener('change', function() {
+          filterFormation = formSelect.value;
+          currentPage = 1;
+          loadReports();
+        });
+      }
+      var typeSelect = document.getElementById('cwaType');
+      if (typeSelect) {
+        typeSelect.addEventListener('change', function() {
+          filterType = typeSelect.value;
+          currentPage = 1;
+          loadReports();
+        });
+      }
+    }
+
+    window.wiCwaPage = function(p) {
+      currentPage = p;
+      loadReports();
+      window.scrollTo(0, 0);
+    };
+  })();
+  </script>
+</body>
+</html>

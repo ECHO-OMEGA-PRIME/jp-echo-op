@@ -49,6 +49,7 @@ function buildSidebar(activePage) {
     { id: 'multi-sample', label: 'Multi-Sample Avg', href: 'multi-sample.html', icon: ICONS.multiSample },
     { id: 'millipore-analysis', label: 'Millipore Analysis', href: 'millipore-analysis.html', icon: ICONS.millipore },
     { divider: true, ownerOnly: true },
+    { id: 'cwa-reports', label: 'CWA Reports', href: 'cwa-reports.html', icon: ICONS.estimates },
     { id: 'upload', label: 'Upload PDF', href: 'upload.html', icon: ICONS.upload, ownerOnly: true },
     { id: 'query', label: 'Data Query', href: 'query.html', icon: ICONS.query, ownerOnly: true },
     { divider: true, ownerOnly: true },
