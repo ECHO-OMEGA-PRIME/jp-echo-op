@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scale Risk Predictor — Aqua Pulse</title>
+  <meta name="description" content="Per-well scale risk assessment — CaCO3, BaSO4, CaSO4 and corrosion risk calculated from latest ion readings.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/scale-risk.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260402">
+  <style>
+    /* ── Summary Cards ── */
+    .sr-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px; }
+    .sr-card { text-align:center; padding:22px 14px; border-radius:12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); transition:transform .2s, box-shadow .2s; }
+    .sr-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+    .sr-card-val { font-size:2.2rem; font-weight:700; font-family:var(--font-heading); }
+    .sr-card-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:1.2px; color:var(--white-dim); margin-top:6px; }
+    .sr-card.blue .sr-card-val { color:var(--cyan); }
+    .sr-card.red { border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.06); }
+    .sr-card.red .sr-card-val { color:#f87171; }
+    .sr-card.amber { border-color:rgba(251,191,36,0.3); background:rgba(251,191,36,0.06); }
+    .sr-card.amber .sr-card-val { color:#fbbf24; }
+    .sr-card.green { border-color:rgba(34,197,94,0.3); background:rgba(34,197,94,0.06); }
+    .sr-card.green .sr-card-val { color:#4ade80; }
+
+    /* Pulse animation for HIGH card */
+    .sr-card.red { animation: pulse-red 2s ease-in-out infinite; }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow:0 0 0 0 rgba(239,68,68,0); }
+      50% { box-shadow:0 0 16px 4px rgba(239,68,68,0.15); }
+    }
+
+    /* ── Ring Chart ── */
+    .sr-ring-wrap { display:flex; justify-content:center; margin-bottom:28px; }
+    .sr-ring { position:relative; width:200px; height:200px; }
+    .sr-ring svg { width:200px; height:200px; transform:rotate(-90deg); }
+    .sr-ring circle { fill:none; stroke-width:18; cx:100; cy:100; r:80; }
+    .sr-ring .track { stroke:rgba(255,255,255,0.05); }
+    .sr-ring .seg-high { stroke:#ef4444; stroke-linecap:round; transition:stroke-dasharray .8s ease; }
+    .sr-ring .seg-med { stroke:#fbbf24; stroke-linecap:round; transition:stroke-dasharray .8s ease; }
+    .sr-ring .seg-low { stroke:#22c55e; stroke-linecap:round; transition:stroke-dasharray .8s ease; }
+    .sr-ring-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+    .sr-ring-center .val { font-size:1.6rem; font-weight:700; font-family:var(--font-heading); color:var(--white); }
+    .sr-ring-center .lbl { font-size:0.65rem; text-transform:uppercase; letter-spacing:1px; color:var(--white-dim); margin-top:2px; }
+    .sr-ring-legend { display:flex; gap:20px; justify-content:center; margin-top:12px; }
+    .sr-ring-legend span { font-size:0.75rem; display:flex; align-items:center; gap:6px; color:var(--white-dim); }
+    .sr-ring-legend .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .sr-ring-legend .dot.high { background:#ef4444; }
+    .sr-ring-legend .dot.med { background:#fbbf24; }
+    .sr-ring-legend .dot.low { background:#22c55e; }
+
+    /* ── Controls Row ── */
+    .sr-controls { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+    .sr-controls select { background:var(--surface-alt,rgba(255,255,255,0.05)); border:1px solid rgba(255,255,255,0.12); color:var(--white); padding:8px 12px; border-radius:6px; font-size:0.85rem; }
+    .sr-controls select option { background:#0c1829; color:#e2edf6; }
+
+    /* ── Risk Badges ── */
+    .risk-badge { display:inline-block; padding:3px 10px; border-radius:5px; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; min-width:58px; text-align:center; }
+    .risk-badge.HIGH { background:rgba(239,68,68,0.18); color:#f87171; box-shadow:0 0 8px rgba(239,68,68,0.25); }
+    .risk-badge.MEDIUM { background:rgba(251,191,36,0.15); color:#fbbf24; }
+    .risk-badge.LOW { background:rgba(34,197,94,0.12); color:#4ade80; }
+
+    /* ── Top Risks Card ── */
+    .sr-top-risks { margin-top:28px; }
+    .sr-top-risk-item { display:flex; align-items:center; gap:14px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .sr-top-risk-item:last-child { border-bottom:none; }
+    .sr-top-risk-rank { font-size:1.1rem; font-weight:700; color:var(--white-dim); font-family:var(--font-heading); min-width:28px; text-align:center; }
+    .sr-top-risk-name { font-weight:600; color:var(--cyan); flex:1; }
+    .sr-top-risk-factors { display:flex; gap:6px; flex-wrap:wrap; }
+    .sr-top-risk-ion { font-size:0.72rem; color:var(--white-dim); }
+    .sr-top-risk-ion strong { color:var(--white); }
+
+    /* ── Sortable headers ── */
+    .data-table th.sortable { cursor:pointer; user-select:none; position:relative; padding-right:18px; }
+    .data-table th.sortable:hover { color:var(--cyan); }
+    .data-table th.sortable::after { content:''; position:absolute; right:4px; top:50%; transform:translateY(-50%); border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid rgba(255,255,255,0.25); }
+    .data-table th.sortable.asc::after { border-top:none; border-bottom:5px solid var(--cyan); }
+    .data-table th.sortable.desc::after { border-top:5px solid var(--cyan); }
+
+    /* ── Two-col layout ── */
+    .sr-two-col { display:grid; grid-template-columns:1fr 380px; gap:24px; }
+    @media (max-width:1100px) { .sr-two-col { grid-template-columns:1fr; } }
+
+    .formation-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.7rem; background:rgba(20,184,166,0.12); color:var(--teal,#14b8a6); }
+    .ion-val { font-family:var(--font-heading); font-size:0.82rem; }
+  </style>
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260402"></script>
+  <script src="assets/js/auth.js?v=20260402"></script>
+  <script src="assets/js/common.js?v=20260402"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'scale-risk',
+      title: 'Scale Risk Predictor',
+      subtitle: 'Per-well CaCO\u2083, BaSO\u2084, CaSO\u2084 & corrosion risk from latest ion readings'
+    });
+
+    var allWells = [];
+    var filteredWells = [];
+    var sortCol = 'risk_overall';
+    var sortDir = 'desc';
+    var filterRisk = '';
+    var searchTerm = '';
+    var searchTimer = null;
+    var summary = null;
+
+    content.innerHTML = c.skeletonRows(10, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) loadData();
+    });
+
+    async function loadData() {
+      try {
+        var data = await api('/api/v1/scale-risk');
+        allWells = data.wells || [];
+        summary = data.summary || { total_assessed:0, high_risk:0, medium_risk:0, low_risk:0, top_risks:[] };
+        applyFilters();
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading scale risk data: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function applyFilters() {
+      filteredWells = allWells.slice();
+      if (filterRisk) {
+        filteredWells = filteredWells.filter(function(w) { return w.risk_overall === filterRisk; });
+      }
+      if (searchTerm) {
+        var q = searchTerm.toLowerCase();
+        filteredWells = filteredWells.filter(function(w) {
+          return (w.well_name || '').toLowerCase().indexOf(q) !== -1 ||
+                 (w.target_formation || '').toLowerCase().indexOf(q) !== -1;
+        });
+      }
+      sortWells();
+      render();
+    }
+
+    var riskOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+
+    function sortWells() {
+      filteredWells.sort(function(a, b) {
+        var va, vb;
+        if (sortCol === 'risk_overall' || sortCol === 'risk_caco3' || sortCol === 'risk_baso4' || sortCol === 'risk_caso4' || sortCol === 'risk_corrosion') {
+          va = riskOrder[a[sortCol]] || 0;
+          vb = riskOrder[b[sortCol]] || 0;
+        } else if (sortCol === 'well_name' || sortCol === 'target_formation') {
+          va = (a[sortCol] || '').toLowerCase();
+          vb = (b[sortCol] || '').toLowerCase();
+          if (va < vb) return sortDir === 'asc' ? -1 : 1;
+          if (va > vb) return sortDir === 'asc' ? 1 : -1;
+          return 0;
+        } else {
+          va = a[sortCol] ?? -Infinity;
+          vb = b[sortCol] ?? -Infinity;
+        }
+        return sortDir === 'asc' ? va - vb : vb - va;
+      });
+    }
+
+    function fmtNum(v) {
+      if (v === null || v === undefined || v === '') return '--';
+      var n = parseFloat(v);
+      if (isNaN(n)) return '--';
+      return c.formatNumber ? c.formatNumber(n, 1) : n.toFixed(1);
+    }
+
+    function riskBadge(level) {
+      return '<span class="risk-badge ' + c.escapeHtml(level) + '">' + c.escapeHtml(level) + '</span>';
+    }
+
+    function buildRing(s) {
+      var total = s.total_assessed || 1;
+      var circumference = 2 * Math.PI * 80; // r=80
+      var highPct = s.high_risk / total;
+      var medPct = s.medium_risk / total;
+      var lowPct = s.low_risk / total;
+
+      var highLen = highPct * circumference;
+      var medLen = medPct * circumference;
+      var lowLen = lowPct * circumference;
+
+      var highOffset = 0;
+      var medOffset = highLen;
+      var lowOffset = highLen + medLen;
+
+      var atRisk = s.high_risk + s.medium_risk;
+
+      var html = '<div class="sr-ring-wrap"><div><div class="sr-ring">';
+      html += '<svg viewBox="0 0 200 200">';
+      html += '<circle class="track" />';
+      if (highLen > 0) html += '<circle class="seg-high" stroke-dasharray="' + highLen.toFixed(1) + ' ' + (circumference - highLen).toFixed(1) + '" stroke-dashoffset="-' + highOffset.toFixed(1) + '" />';
+      if (medLen > 0) html += '<circle class="seg-med" stroke-dasharray="' + medLen.toFixed(1) + ' ' + (circumference - medLen).toFixed(1) + '" stroke-dashoffset="-' + medOffset.toFixed(1) + '" />';
+      if (lowLen > 0) html += '<circle class="seg-low" stroke-dasharray="' + lowLen.toFixed(1) + ' ' + (circumference - lowLen).toFixed(1) + '" stroke-dashoffset="-' + lowOffset.toFixed(1) + '" />';
+      html += '</svg>';
+      html += '<div class="sr-ring-center"><div class="val">' + atRisk + '</div><div class="lbl">wells at risk</div></div>';
+      html += '</div>';
+      html += '<div class="sr-ring-legend">';
+      html += '<span><span class="dot high"></span>High ' + s.high_risk + '</span>';
+      html += '<span><span class="dot med"></span>Medium ' + s.medium_risk + '</span>';
+      html += '<span><span class="dot low"></span>Low ' + s.low_risk + '</span>';
+      html += '</div></div></div>';
+      return html;
+    }
+
+    function buildTopRisks(topRisks) {
+      if (!topRisks || topRisks.length === 0) return '';
+      var html = '<div class="glass-card sr-top-risks">';
+      html += '<h3 style="margin:0 0 12px;font-family:var(--font-heading);font-size:1rem;color:var(--white)">Top 10 Highest Risk Wells</h3>';
+      topRisks.forEach(function(tr, i) {
+        html += '<div class="sr-top-risk-item">';
+        html += '<div class="sr-top-risk-rank">#' + (i + 1) + '</div>';
+        html += '<div class="sr-top-risk-name">' + c.escapeHtml(tr.well_name) + '</div>';
+        html += '<div class="sr-top-risk-factors">';
+        (tr.factors || []).forEach(function(f) {
+          html += '<span class="risk-badge HIGH" style="font-size:0.65rem;padding:2px 7px">' + c.escapeHtml(f) + '</span>';
+        });
+        html += '</div>';
+        html += '<div class="sr-top-risk-ion">';
+        if (tr.calcium !== null) html += 'Ca <strong>' + fmtNum(tr.calcium) + '</strong> ';
+        if (tr.barium !== null) html += 'Ba <strong>' + fmtNum(tr.barium) + '</strong> ';
+        if (tr.sulfate !== null) html += 'SO\u2084 <strong>' + fmtNum(tr.sulfate) + '</strong> ';
+        if (tr.h2s !== null && tr.h2s > 0) html += 'H\u2082S <strong>' + fmtNum(tr.h2s) + '</strong> ';
+        if (tr.iron !== null && tr.iron > 0) html += 'Fe <strong>' + fmtNum(tr.iron) + '</strong>';
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function thSort(col, label) {
+      var cls = 'sortable';
+      if (sortCol === col) cls += ' ' + sortDir;
+      return '<th class="' + cls + '" data-col="' + col + '">' + label + '</th>';
+    }
+
+    function render() {
+      var html = '';
+
+      // Summary cards
+      if (summary) {
+        html += '<div class="sr-cards">';
+        html += '<div class="sr-card blue"><div class="sr-card-val">' + summary.total_assessed + '</div><div class="sr-card-label">Wells Assessed</div></div>';
+        html += '<div class="sr-card red"><div class="sr-card-val">' + summary.high_risk + '</div><div class="sr-card-label">High Risk</div></div>';
+        html += '<div class="sr-card amber"><div class="sr-card-val">' + summary.medium_risk + '</div><div class="sr-card-label">Medium Risk</div></div>';
+        html += '<div class="sr-card green"><div class="sr-card-val">' + summary.low_risk + '</div><div class="sr-card-label">Low Risk</div></div>';
+        html += '</div>';
+      }
+
+      // Ring chart
+      if (summary && summary.total_assessed > 0) {
+        html += buildRing(summary);
+      }
+
+      // Controls
+      html += '<div class="sr-controls">';
+      html += '<div class="search-bar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+      html += '<input type="text" id="srSearch" placeholder="Search well name or formation..." value="' + c.escapeHtml(searchTerm) + '"></div>';
+      html += '<select id="srRiskFilter">';
+      html += '<option value=""' + (filterRisk === '' ? ' selected' : '') + '>All Risk Levels</option>';
+      html += '<option value="HIGH"' + (filterRisk === 'HIGH' ? ' selected' : '') + '>HIGH Only</option>';
+      html += '<option value="MEDIUM"' + (filterRisk === 'MEDIUM' ? ' selected' : '') + '>MEDIUM Only</option>';
+      html += '<option value="LOW"' + (filterRisk === 'LOW' ? ' selected' : '') + '>LOW Only</option>';
+      html += '</select>';
+      html += '<span style="font-family:var(--font-heading);font-size:0.8rem;color:var(--white-dim)">' + filteredWells.length + ' wells</span>';
+      html += '</div>';
+
+      // Two-column layout: table + top risks
+      html += '<div class="sr-two-col">';
+
+      // Table
+      if (filteredWells.length === 0) {
+        html += '<div class="empty-state"><p>No wells match the current filters</p></div>';
+      } else {
+        html += '<div class="glass-card" style="overflow-x:auto"><table class="data-table"><thead><tr>';
+        html += thSort('well_name', 'Well Name');
+        html += thSort('target_formation', 'Formation');
+        html += thSort('risk_overall', 'Overall');
+        html += thSort('risk_caco3', 'CaCO\u2083');
+        html += thSort('risk_baso4', 'BaSO\u2084');
+        html += thSort('risk_caso4', 'CaSO\u2084');
+        html += thSort('risk_corrosion', 'Corrosion');
+        html += thSort('tds', 'TDS');
+        html += '<th>Key Ions</th>';
+        html += '</tr></thead><tbody>';
+
+        filteredWells.forEach(function(w) {
+          html += '<tr>';
+          html += '<td style="color:var(--cyan);font-weight:600;white-space:nowrap">' + c.escapeHtml(w.well_name || '') + '</td>';
+          html += '<td>' + (w.target_formation ? '<span class="formation-tag">' + c.escapeHtml(w.target_formation) + '</span>' : '<span style="color:var(--white-dim)">--</span>') + '</td>';
+          html += '<td>' + riskBadge(w.risk_overall) + '</td>';
+          html += '<td>' + riskBadge(w.risk_caco3) + '</td>';
+          html += '<td>' + riskBadge(w.risk_baso4) + '</td>';
+          html += '<td>' + riskBadge(w.risk_caso4) + '</td>';
+          html += '<td>' + riskBadge(w.risk_corrosion) + '</td>';
+          html += '<td class="ion-val">' + fmtNum(w.tds) + '</td>';
+          html += '<td class="ion-val" style="font-size:0.75rem;white-space:nowrap">';
+          html += 'Ca ' + fmtNum(w.calcium);
+          html += ' &middot; Ba ' + fmtNum(w.barium);
+          html += ' &middot; SO\u2084 ' + fmtNum(w.sulfate);
+          if (w.h2s && w.h2s > 0) html += ' &middot; H\u2082S ' + fmtNum(w.h2s);
+          html += '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+      }
+
+      // Top risks sidebar
+      if (summary && summary.top_risks && summary.top_risks.length > 0) {
+        html += buildTopRisks(summary.top_risks);
+      }
+
+      html += '</div>'; // end sr-two-col
+
+      content.innerHTML = html;
+      bindEvents();
+    }
+
+    function bindEvents() {
+      var searchInput = document.getElementById('srSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(function() {
+            searchTerm = searchInput.value.trim();
+            applyFilters();
+          }, 300);
+        });
+      }
+
+      var riskSelect = document.getElementById('srRiskFilter');
+      if (riskSelect) {
+        riskSelect.addEventListener('change', function() {
+          filterRisk = riskSelect.value;
+          applyFilters();
+        });
+      }
+
+      // Sortable column headers
+      var ths = document.querySelectorAll('.data-table th.sortable');
+      ths.forEach(function(th) {
+        th.addEventListener('click', function() {
+          var col = th.getAttribute('data-col');
+          if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            sortCol = col;
+            sortDir = 'desc';
+          }
+          applyFilters();
+        });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

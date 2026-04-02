@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formation Comparison — Aqua Pulse</title>
+  <meta name="description" content="Side-by-side water chemistry comparison across Permian Basin geological formations.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://jp.echo-op.com/formation-comparison.html">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4ff">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/water-intel.css?v=20260402">
+  <style>
+    .fc-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px; }
+    .fc-stat { text-align:center; padding:22px 14px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
+    .fc-stat-val { font-size:1.9rem; font-weight:700; font-family:var(--font-heading); color:var(--cyan); }
+    .fc-stat-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--white-dim); margin-top:4px; }
+
+    .fc-selectors { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; align-items:center; }
+    .fc-selectors select { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:var(--white); padding:8px 14px; border-radius:6px; font-size:0.85rem; min-width:180px; }
+    .fc-selectors select option { background:#0c1829; color:#e2edf6; }
+    .fc-selectors .btn-outline { padding:8px 18px; font-size:0.82rem; }
+
+    .fc-bar-section { margin-bottom:32px; }
+    .fc-bar-section h3 { font-family:var(--font-heading); font-size:1rem; font-weight:600; color:var(--white); margin-bottom:16px; }
+    .fc-bar-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+    .fc-bar-label { min-width:140px; max-width:180px; font-size:0.78rem; color:var(--white); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fc-bar-track { flex:1; background:rgba(255,255,255,0.04); border-radius:4px; height:26px; position:relative; overflow:hidden; }
+    .fc-bar-fill { height:100%; border-radius:4px; display:flex; align-items:center; padding:0 10px; font-size:0.72rem; font-weight:600; color:#fff; white-space:nowrap; min-width:fit-content; transition:width 0.6s ease; }
+    .fc-bar-meta { min-width:100px; text-align:right; font-size:0.72rem; color:var(--white-dim); }
+
+    .fc-nasty { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:32px; }
+    .fc-nasty-card { padding:18px; border-radius:10px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); }
+    .fc-nasty-title { font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; color:#f87171; margin-bottom:6px; }
+    .fc-nasty-formation { font-size:1.1rem; font-weight:700; font-family:var(--font-heading); color:#fca5a5; }
+    .fc-nasty-value { font-size:0.82rem; color:var(--white-dim); margin-top:4px; }
+
+    .fc-compare-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+    .fc-compare-table th { text-align:left; padding:10px 12px; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--white-dim); border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:var(--surface,#0a1628); z-index:2; }
+    .fc-compare-table td { padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .fc-compare-table tr:hover td { background:rgba(0,212,255,0.03); }
+    .fc-ion-label { font-weight:600; color:var(--white); white-space:nowrap; }
+    .fc-cell { text-align:center; font-variant-numeric:tabular-nums; }
+    .fc-cell-low { color:#4ade80; }
+    .fc-cell-mid { color:#fbbf24; }
+    .fc-cell-high { color:#f87171; }
+    .fc-cell-header { font-weight:600; color:var(--cyan); text-align:center; }
+
+    .fc-section-title { font-family:var(--font-heading); font-size:1.05rem; font-weight:600; color:var(--white); margin:0 0 16px 0; }
+    .fc-section { margin-bottom:32px; }
+
+    .fc-compare-scroll { overflow-x:auto; max-height:600px; overflow-y:auto; }
+  </style>
+</head>
+<body>
+  <script src="assets/js/api.js?v=20260402"></script>
+  <script src="assets/js/auth.js?v=20260402"></script>
+  <script src="assets/js/common.js?v=20260402"></script>
+  <script>
+  (function() {
+    'use strict';
+    var api = bgat.api.apiFetch;
+    var c = bgat.common;
+
+    var content = c.initPage({
+      page: 'formation-comparison',
+      title: 'Formation Comparison',
+      subtitle: 'Side-by-side water chemistry comparison across Permian Basin geological formations'
+    });
+
+    var allData = null;
+    var selectedFormations = [];
+
+    content.innerHTML = c.skeletonRows(10, 48);
+
+    wiAuth.subscribe(function(s) {
+      if (s.user && !s.loading) {
+        loadData();
+      }
+    });
+
+    var ION_CONFIG = [
+      { key: 'tds', label: 'TDS (mg/L)', unit: 'mg/L', thresholds: [50000, 150000] },
+      { key: 'chloride', label: 'Chloride (mg/L)', unit: 'mg/L', thresholds: [30000, 100000] },
+      { key: 'calcium', label: 'Calcium (mg/L)', unit: 'mg/L', thresholds: [5000, 20000] },
+      { key: 'magnesium', label: 'Magnesium (mg/L)', unit: 'mg/L', thresholds: [1000, 5000] },
+      { key: 'barium', label: 'Barium (mg/L)', unit: 'mg/L', thresholds: [5, 50] },
+      { key: 'sodium', label: 'Sodium (mg/L)', unit: 'mg/L', thresholds: [15000, 50000] },
+      { key: 'iron', label: 'Iron (mg/L)', unit: 'mg/L', thresholds: [10, 50] },
+      { key: 'manganese', label: 'Manganese (mg/L)', unit: 'mg/L', thresholds: [1, 10] },
+      { key: 'sulfate', label: 'Sulfate (mg/L)', unit: 'mg/L', thresholds: [500, 2000] },
+      { key: 'h2s', label: 'H2S (mg/L)', unit: 'mg/L', thresholds: [1, 10] },
+      { key: 'ph', label: 'pH', unit: '', thresholds: [6, 8] }
+    ];
+
+    var BAR_COLORS = [
+      'rgba(0,212,255,0.7)', 'rgba(20,184,166,0.7)', 'rgba(139,92,246,0.65)',
+      'rgba(251,146,60,0.7)', 'rgba(236,72,153,0.65)', 'rgba(34,197,94,0.7)',
+      'rgba(99,102,241,0.65)', 'rgba(251,191,36,0.7)', 'rgba(248,113,113,0.65)',
+      'rgba(56,189,248,0.7)', 'rgba(167,139,250,0.65)', 'rgba(74,222,128,0.7)'
+    ];
+
+    async function loadData() {
+      try {
+        var data = await api('/api/v1/formations/comparison');
+        allData = data;
+        if (data.formations && data.formations.length > 0) {
+          selectedFormations = data.formations.slice(0, Math.min(3, data.formations.length)).map(function(f) { return f.formation; });
+        }
+        render();
+      } catch(e) {
+        content.innerHTML = '<div class="empty-state"><p>Error loading formation data: ' + c.escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function getColorClass(value, thresholds) {
+      if (value === null || value === undefined) return '';
+      if (thresholds[0] < thresholds[1]) {
+        if (value <= thresholds[0]) return 'fc-cell-low';
+        if (value <= thresholds[1]) return 'fc-cell-mid';
+        return 'fc-cell-high';
+      }
+      // For pH where middle is good
+      if (value >= thresholds[0] && value <= thresholds[1]) return 'fc-cell-low';
+      return 'fc-cell-high';
+    }
+
+    function findNastiest(formations, avgKey) {
+      var worst = null;
+      var worstVal = -Infinity;
+      formations.forEach(function(f) {
+        var val = f[avgKey];
+        if (val !== null && val !== undefined && val > worstVal) {
+          worstVal = val;
+          worst = f;
+        }
+      });
+      return worst;
+    }
+
+    function render() {
+      if (!allData || !allData.formations || allData.formations.length === 0) {
+        content.innerHTML = '<div class="empty-state"><p>No formation data available. Upload sample PDFs with well formation data to see comparisons.</p></div>';
+        return;
+      }
+
+      var formations = allData.formations;
+      var summary = allData.summary;
+      var html = '';
+
+      // === Stats Row ===
+      html += '<div class="fc-stats">';
+      html += '<div class="fc-stat"><div class="fc-stat-val">' + (summary.formation_count || 0) + '</div><div class="fc-stat-label">Formations</div></div>';
+      html += '<div class="fc-stat"><div class="fc-stat-val">' + c.formatNumber(summary.total_wells, 0) + '</div><div class="fc-stat-label">Wells with Data</div></div>';
+      html += '<div class="fc-stat"><div class="fc-stat-val">' + c.formatNumber(summary.total_samples, 0) + '</div><div class="fc-stat-label">Total Samples</div></div>';
+      // Find max TDS
+      var maxTdsFormation = findNastiest(formations, 'avg_tds');
+      html += '<div class="fc-stat"><div class="fc-stat-val" style="font-size:1.1rem">' + (maxTdsFormation ? c.escapeHtml(maxTdsFormation.formation) : '--') + '</div><div class="fc-stat-label">Highest Avg TDS</div></div>';
+      html += '</div>';
+
+      // === Nastiest Formation Callouts ===
+      html += '<div class="fc-section"><h3 class="fc-section-title" style="color:#f87171">Risk Indicators</h3>';
+      html += '<div class="fc-nasty">';
+
+      var nastyTds = findNastiest(formations, 'avg_tds');
+      if (nastyTds) {
+        html += '<div class="fc-nasty-card">';
+        html += '<div class="fc-nasty-title">Highest TDS (Salinity)</div>';
+        html += '<div class="fc-nasty-formation">' + c.escapeHtml(nastyTds.formation) + '</div>';
+        html += '<div class="fc-nasty-value">Avg: ' + c.formatNumber(nastyTds.avg_tds, 0) + ' mg/L &middot; Max: ' + c.formatNumber(nastyTds.max_tds, 0) + ' mg/L</div>';
+        html += '</div>';
+      }
+
+      var nastyH2s = findNastiest(formations, 'avg_h2s');
+      if (nastyH2s) {
+        html += '<div class="fc-nasty-card">';
+        html += '<div class="fc-nasty-title">Highest H2S (Corrosion Risk)</div>';
+        html += '<div class="fc-nasty-formation">' + c.escapeHtml(nastyH2s.formation) + '</div>';
+        html += '<div class="fc-nasty-value">Avg: ' + c.formatNumber(nastyH2s.avg_h2s, 1) + ' mg/L &middot; Max: ' + c.formatNumber(nastyH2s.max_h2s, 1) + ' mg/L</div>';
+        html += '</div>';
+      }
+
+      var nastyBarium = findNastiest(formations, 'avg_barium');
+      if (nastyBarium) {
+        html += '<div class="fc-nasty-card">';
+        html += '<div class="fc-nasty-title">Highest Barium (Scale Risk)</div>';
+        html += '<div class="fc-nasty-formation">' + c.escapeHtml(nastyBarium.formation) + '</div>';
+        html += '<div class="fc-nasty-value">Avg: ' + c.formatNumber(nastyBarium.avg_barium, 1) + ' mg/L &middot; Max: ' + c.formatNumber(nastyBarium.max_barium, 1) + ' mg/L</div>';
+        html += '</div>';
+      }
+
+      var nastyIron = findNastiest(formations, 'avg_iron');
+      if (nastyIron) {
+        html += '<div class="fc-nasty-card">';
+        html += '<div class="fc-nasty-title">Highest Iron (Plugging Risk)</div>';
+        html += '<div class="fc-nasty-formation">' + c.escapeHtml(nastyIron.formation) + '</div>';
+        html += '<div class="fc-nasty-value">Avg: ' + c.formatNumber(nastyIron.avg_iron, 1) + ' mg/L &middot; Max: ' + c.formatNumber(nastyIron.max_iron, 1) + ' mg/L</div>';
+        html += '</div>';
+      }
+
+      html += '</div></div>';
+
+      // === TDS Bar Chart ===
+      html += '<div class="fc-section glass-card" style="padding:20px">';
+      html += '<h3 class="fc-section-title">Average TDS by Formation</h3>';
+      var maxTds = 0;
+      formations.forEach(function(f) { if (f.avg_tds > maxTds) maxTds = f.avg_tds; });
+      if (maxTds === 0) maxTds = 1;
+
+      formations.forEach(function(f, i) {
+        var pct = ((f.avg_tds || 0) / maxTds * 100).toFixed(1);
+        var color = BAR_COLORS[i % BAR_COLORS.length];
+        html += '<div class="fc-bar-row">';
+        html += '<div class="fc-bar-label" title="' + c.escapeHtml(f.formation) + '">' + c.escapeHtml(f.formation) + '</div>';
+        html += '<div class="fc-bar-track"><div class="fc-bar-fill" style="width:' + pct + '%;background:' + color + '">' + c.formatNumber(f.avg_tds, 0) + '</div></div>';
+        html += '<div class="fc-bar-meta">' + f.well_count + ' wells / ' + f.sample_count + ' samples</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // === Formation Selector ===
+      html += '<div class="fc-section">';
+      html += '<h3 class="fc-section-title">Detailed Comparison</h3>';
+      html += '<div class="fc-selectors">';
+      for (var si = 0; si < 3; si++) {
+        html += '<select id="fcSelect' + si + '">';
+        html += '<option value="">-- Select Formation --</option>';
+        formations.forEach(function(f) {
+          var sel = (selectedFormations[si] === f.formation) ? ' selected' : '';
+          html += '<option value="' + c.escapeHtml(f.formation) + '"' + sel + '>' + c.escapeHtml(f.formation) + ' (' + f.well_count + ' wells)</option>';
+        });
+        html += '</select>';
+      }
+      html += '<button class="btn-outline btn-sm" id="fcCompareBtn">Compare</button>';
+      html += '</div></div>';
+
+      // === Comparison Table ===
+      var compareFormations = [];
+      selectedFormations.forEach(function(name) {
+        if (!name) return;
+        for (var fi = 0; fi < formations.length; fi++) {
+          if (formations[fi].formation === name) {
+            compareFormations.push(formations[fi]);
+            break;
+          }
+        }
+      });
+
+      if (compareFormations.length > 0) {
+        html += '<div class="fc-section glass-card" style="padding:20px">';
+        html += '<div class="fc-compare-scroll"><table class="fc-compare-table"><thead><tr>';
+        html += '<th>Parameter</th>';
+        compareFormations.forEach(function(f) {
+          html += '<th class="fc-cell-header">' + c.escapeHtml(f.formation) + '<br><span style="font-weight:400;font-size:0.65rem;color:var(--white-dim)">' + f.well_count + ' wells / ' + f.sample_count + ' samples</span></th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        ION_CONFIG.forEach(function(ion) {
+          html += '<tr>';
+          html += '<td class="fc-ion-label">' + ion.label + '</td>';
+          // Collect values for this ion across compared formations to determine relative coloring
+          var vals = compareFormations.map(function(f) { return f['avg_' + ion.key]; });
+          compareFormations.forEach(function(f) {
+            var avg = f['avg_' + ion.key];
+            var min = f['min_' + ion.key];
+            var max = f['max_' + ion.key];
+            var cls = getColorClass(avg, ion.thresholds);
+            var avgStr = (avg !== null && avg !== undefined) ? c.formatNumber(avg, 1) : '--';
+            var minStr = (min !== null && min !== undefined) ? c.formatNumber(min, 1) : '--';
+            var maxStr = (max !== null && max !== undefined) ? c.formatNumber(max, 1) : '--';
+            html += '<td class="fc-cell ' + cls + '">';
+            html += '<div style="font-size:1rem;font-weight:600">' + avgStr + '</div>';
+            html += '<div style="font-size:0.68rem;color:var(--white-dim);margin-top:2px">' + minStr + ' — ' + maxStr + '</div>';
+            html += '</td>';
+          });
+          html += '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+      }
+
+      // === Full Formation Overview Table ===
+      html += '<div class="fc-section">';
+      html += '<h3 class="fc-section-title">All Formations Overview</h3>';
+      html += '<div class="glass-card" style="padding:20px;overflow-x:auto">';
+      html += '<table class="fc-compare-table"><thead><tr>';
+      html += '<th>Formation</th><th style="text-align:center">Wells</th><th style="text-align:center">Samples</th>';
+      html += '<th style="text-align:center">Avg TDS</th><th style="text-align:center">Avg Chloride</th>';
+      html += '<th style="text-align:center">Avg Calcium</th><th style="text-align:center">Avg Barium</th>';
+      html += '<th style="text-align:center">Avg Sodium</th><th style="text-align:center">Avg Iron</th>';
+      html += '<th style="text-align:center">Avg H2S</th><th style="text-align:center">Avg pH</th>';
+      html += '</tr></thead><tbody>';
+
+      formations.forEach(function(f) {
+        html += '<tr>';
+        html += '<td style="color:var(--cyan);font-weight:600;white-space:nowrap">' + c.escapeHtml(f.formation) + '</td>';
+        html += '<td style="text-align:center">' + f.well_count + '</td>';
+        html += '<td style="text-align:center">' + f.sample_count + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_tds, ION_CONFIG[0].thresholds) + '">' + c.formatNumber(f.avg_tds, 0) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_chloride, ION_CONFIG[1].thresholds) + '">' + c.formatNumber(f.avg_chloride, 0) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_calcium, ION_CONFIG[2].thresholds) + '">' + c.formatNumber(f.avg_calcium, 0) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_barium, ION_CONFIG[4].thresholds) + '">' + c.formatNumber(f.avg_barium, 1) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_sodium, ION_CONFIG[5].thresholds) + '">' + c.formatNumber(f.avg_sodium, 0) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_iron, ION_CONFIG[6].thresholds) + '">' + c.formatNumber(f.avg_iron, 1) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_h2s, ION_CONFIG[9].thresholds) + '">' + c.formatNumber(f.avg_h2s, 1) + '</td>';
+        html += '<td class="fc-cell ' + getColorClass(f.avg_ph, ION_CONFIG[10].thresholds) + '">' + c.formatNumber(f.avg_ph, 1) + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div></div>';
+
+      content.innerHTML = html;
+
+      // Bind selector events
+      var compareBtn = document.getElementById('fcCompareBtn');
+      if (compareBtn) {
+        compareBtn.addEventListener('click', function() {
+          selectedFormations = [];
+          for (var si = 0; si < 3; si++) {
+            var sel = document.getElementById('fcSelect' + si);
+            if (sel && sel.value) selectedFormations.push(sel.value);
+          }
+          render();
+        });
+      }
+
+      // Also trigger compare on Enter key in selectors
+      for (var si = 0; si < 3; si++) {
+        (function(idx) {
+          var sel = document.getElementById('fcSelect' + idx);
+          if (sel) {
+            sel.addEventListener('change', function() {
+              selectedFormations[idx] = sel.value;
+            });
+          }
+        })(si);
+      }
+    }
+  })();
+  </script>
+</body>
+</html>

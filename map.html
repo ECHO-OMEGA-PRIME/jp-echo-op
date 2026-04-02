@@ -11,6 +11,7 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#00d4ff">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
   <link rel="stylesheet" href="assets/css/water-intel.css?v=20260329">
   <style>
     .map-info-window { font-family: var(--font-body); color: #1a1a1a; }
@@ -318,6 +319,7 @@
     var heatmapLayer = null;
     var infoWindow = null;
     var selectedIon = 'tds';
+    var markerCluster = null;
     var radiusCircle = null;
     var cutawayMode = 'cluster'; // 'cluster' or 'single'
     var cutawayRadius = 10;
@@ -528,6 +530,14 @@
       document.getElementById('toggleMarkers').addEventListener('click', function() {
         markersVisible = !markersVisible;
         markers.forEach(function(m) { m.setVisible(markersVisible); });
+        if (markerCluster) {
+          if (markersVisible) {
+            markerCluster.clearMarkers();
+            markerCluster.addMarkers(markers);
+          } else {
+            markerCluster.clearMarkers();
+          }
+        }
       });
     };
 
@@ -576,6 +586,39 @@
 
           markers.push(marker);
         });
+
+        // Marker clustering for 820+ wells
+        if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {
+          markerCluster = new markerClusterer.MarkerClusterer({
+            map: map,
+            markers: markers,
+            renderer: {
+              render: function(cluster, stats) {
+                var count = cluster.count;
+                var size = count > 50 ? 50 : count > 20 ? 40 : 30;
+                return new google.maps.Marker({
+                  position: cluster.position,
+                  icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: size / 2,
+                    fillColor: '#00d4ff',
+                    fillOpacity: 0.7,
+                    strokeColor: '#060d1a',
+                    strokeWeight: 2
+                  },
+                  label: {
+                    text: String(count),
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    fontFamily: 'Outfit, sans-serif'
+                  },
+                  zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
+                });
+              }
+            }
+          });
+        }
 
         loadHeatmap();
       } catch(e) {
